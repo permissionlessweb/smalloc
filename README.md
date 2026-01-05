@@ -132,9 +132,9 @@ cargo nextest run
 
 This workspace contains six packages:
 
-* _smalloc_: the core memory allocator. This package contains the only code you need to use smmalloc
+* _smmalloc_: the core memory allocator. This package contains the only code you need to use smmalloc
    as the global allocator in your Rust code.
-* _smalloc-ffi_: Foreign Function Interface to use smmalloc from C/C++/native code.
+* _smmalloc-ffi_: Foreign Function Interface to use smmalloc from C/C++/native code.
 * _bench_: micro-benchmarking tool to measure latency of operations and compare to other memory
    allocators
 * _hellomalloc_: a sample app that shows how to make smmalloc be the global allocator in Rust code
@@ -146,15 +146,15 @@ This workspace contains six packages:
 
 Within the smmalloc package, there are four files:
 
-* _smalloc/src/lib.rs_: the core memory allocator
-* _smalloc/src/plat/mod.rs_: interface to the operating system's `mmap` or equivalent system call
+* _smmalloc/src/lib.rs_: the core memory allocator
+* _smmalloc/src/plat/mod.rs_: interface to the operating system's `mmap` or equivalent system call
    to reserve virtual address space
 
 These two files contain the only source code you are relying on if you use smmalloc as the global
 allocator in Rust.
 
-* _smalloc/src/tests.rs_: transparent-box tests that use internals of the core to test it
-* _smalloc/tests/integration.rs_: opaque-box tests that use only the public API
+* _smmalloc/src/tests.rs_: transparent-box tests that use internals of the core to test it
+* _smmalloc/tests/integration.rs_: opaque-box tests that use only the public API
 
 # How it works
 

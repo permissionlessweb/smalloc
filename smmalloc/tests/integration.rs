@@ -4,7 +4,7 @@ use std::alloc::Layout;
 use std::alloc::GlobalAlloc;
 
 use devutils::nextest_integration_tests;
-use devutils::get_devsmalloc;
+use devutils::get_devsmmalloc;
 
 nextest_integration_tests! {
     /// This reproduces a bug in `platform::plat::sys_realloc()` /
@@ -16,19 +16,19 @@ nextest_integration_tests! {
         let l1 = Layout::from_size_align(LARGE_SLOT_SIZE * 2, 1).unwrap();
         let l2 = Layout::from_size_align(LARGE_SLOT_SIZE, 1).unwrap();
 
-        let p1 = unsafe { get_devsmalloc!().alloc(l1) };
+        let p1 = unsafe { get_devsmmalloc!().alloc(l1) };
         assert!(!p1.is_null());
-        let p2 = unsafe { get_devsmalloc!().realloc(p1, l1, LARGE_SLOT_SIZE) };
+        let p2 = unsafe { get_devsmmalloc!().realloc(p1, l1, LARGE_SLOT_SIZE) };
         assert!(!p2.is_null());
-        let p3 = unsafe { get_devsmalloc!().realloc(p2, l2, LARGE_SLOT_SIZE * 2) };
+        let p3 = unsafe { get_devsmmalloc!().realloc(p2, l2, LARGE_SLOT_SIZE * 2) };
         assert!(!p3.is_null());
     }
 
     fn test_alloc_1_byte_then_dealloc() {
         let layout = Layout::from_size_align(1, 1).unwrap();
-        let p = unsafe { get_devsmalloc!().alloc(layout) };
+        let p = unsafe { get_devsmmalloc!().alloc(layout) };
         assert!(!p.is_null());
-        unsafe { get_devsmalloc!().dealloc(p, layout) };
+        unsafe { get_devsmmalloc!().dealloc(p, layout) };
     }
 
     fn threads_1_alloc_x() {
@@ -108,7 +108,7 @@ fn help_test_multithreaded(threads: u32, iters: u64, dealloc: bool, realloc: boo
         tses.push(TestState::new(iters, 0));
     }
 
-    help_test_multithreaded_with_allocator(f, threads, iters, get_devsmalloc!(), &mut tses);
+    help_test_multithreaded_with_allocator(f, threads, iters, get_devsmmalloc!(), &mut tses);
 
     //xxx4 could consider cleaning up here -- dealloc'ing all the allocations...
 }

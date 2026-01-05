@@ -16,7 +16,7 @@ macro_rules! with_all_allocators {
             $($args)*;
             @allocators
                 "default", $crate::GlobalAllocWrap;
-                @candidate "smmalloc", devutils::get_devsmalloc!();
+                @candidate "smmalloc", devutils::get_devsmmalloc!();
                 @optional_allocators
                     #[cfg(feature = "mimalloc")] "mimalloc", mimalloc::MiMalloc;
                     #[cfg(feature = "jemalloc")] "jemalloc", tikv_jemallocator::Jemalloc;
@@ -329,7 +329,7 @@ pub fn print_comparisons(candidate_ns: Nanoseconds, baseline_nses: &[(&str, Nano
 #[macro_export]
 macro_rules! st_bench {
     ($func:path, $iters_per_batch:expr, $num_batches:expr, $seed:expr) => {{
-        let sm = devutils::get_devsmalloc!();
+        let sm = devutils::get_devsmmalloc!();
         sm.idempotent_init();
 
         let func_name = stringify!($func);
@@ -395,7 +395,7 @@ macro_rules! compare_st_bench {
 #[macro_export]
 macro_rules! mt_bench {
     ($func:path, $threads:expr, $iters_per_batch:expr, $num_batches:expr, $seed:expr) => {{
-        let sm = devutils::get_devsmalloc!();
+        let sm = devutils::get_devsmmalloc!();
         sm.idempotent_init();
 
         let func_name = stringify!($func);

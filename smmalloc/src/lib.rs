@@ -94,7 +94,7 @@ unsafe impl GlobalAlloc for Smmalloc {
         // less than or equal to the highest slot pointer.
 
         assert!(p_addr >= smbp);
-        assert!(p_addr - smbp >= LOWEST_SMALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SMALLOC_SLOT_ADDR);
+        assert!(p_addr - smbp >= LOWEST_SMMALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SMMALLOC_SLOT_ADDR);
 
         // Okay now we know that it is a pointer into smmalloc's region.
 
@@ -210,10 +210,10 @@ pub mod i {
     pub const DATA_ADDR_BITS_IN_HIGHEST_SC: u8 = NUM_SCS - 1; // 31
 
     // The smmalloc address of the slot with the lowest address is:
-    pub const LOWEST_SMALLOC_SLOT_ADDR: usize = (NUM_UNUSED_SCS as usize) << NUM_SLOTNUM_AND_DATA_BITS; // 0b100000000000000000000000000000000000
+    pub const LOWEST_SMMALLOC_SLOT_ADDR: usize = (NUM_UNUSED_SCS as usize) << NUM_SLOTNUM_AND_DATA_BITS; // 0b100000000000000000000000000000000000
 
     // The smmalloc address of the slot with the highest address is:
-    pub const HIGHEST_SMALLOC_SLOT_ADDR: usize = SLABNUM_BITS_ADDR_MASK | SC_BITS_ADDR_MASK | (HIGHEST_SLOTNUM_IN_HIGHEST_SC as usize) << DATA_ADDR_BITS_IN_HIGHEST_SC; // 0b11111111111100000000000000000000000000000000
+    pub const HIGHEST_SMMALLOC_SLOT_ADDR: usize = SLABNUM_BITS_ADDR_MASK | SC_BITS_ADDR_MASK | (HIGHEST_SLOTNUM_IN_HIGHEST_SC as usize) << DATA_ADDR_BITS_IN_HIGHEST_SC; // 0b11111111111100000000000000000000000000000000
 
     pub struct SmmallocInner {
         pub smbp: AtomicUsize,
@@ -227,7 +227,7 @@ pub mod i {
             // less than or equal to the highest slot pointer.
             let smbp = self.inner().smbp.load(Relaxed);
             debug_assert!(p_addr >= smbp);
-            debug_assert!(p_addr - smbp >= LOWEST_SMALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SMALLOC_SLOT_ADDR);
+            debug_assert!(p_addr - smbp >= LOWEST_SMMALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SMMALLOC_SLOT_ADDR);
 
             // Okay now we know that it is a pointer into smmalloc's region.
 
@@ -321,7 +321,7 @@ pub mod i {
                     // changed) below will fail, so the invalid bits will not get stored.
                     let curfirstentry_p = smbp | (slabnum_and_sc << NUM_SLOTNUM_AND_DATA_BITS) | (curfirstentryslotnum as usize) << sc;
 
-                    debug_assert!((curfirstentry_p - smbp >= LOWEST_SMALLOC_SLOT_ADDR) && (curfirstentry_p - smbp <= HIGHEST_SMALLOC_SLOT_ADDR));
+                    debug_assert!((curfirstentry_p - smbp >= LOWEST_SMMALLOC_SLOT_ADDR) && (curfirstentry_p - smbp <= HIGHEST_SMMALLOC_SLOT_ADDR));
 
                     let curfirstentrylink_v = unsafe { *(curfirstentry_p as *mut u32) };
                     let newfirstentryslotnum = Self::decode_next_entry_link(curfirstentryslotnum, curfirstentrylink_v, sentinel_slotnum);
@@ -434,13 +434,13 @@ const FLHWORD_SLOTNUM_MASK: u64 = gen_mask!(32, u64);
 // ---- Constants for calculating the total virtual address space to reserve ----
 
 // The smmalloc address of the highest-addressed byte of a smmalloc slot is:
-const HIGHEST_SMALLOC_SLOT_BYTE_ADDR: usize = HIGHEST_SMALLOC_SLOT_ADDR | gen_mask!(DATA_ADDR_BITS_IN_HIGHEST_SC, usize); // 0b111111111111101111111111111111111111111111111
+const HIGHEST_SMMALLOC_SLOT_BYTE_ADDR: usize = HIGHEST_SMMALLOC_SLOT_ADDR | gen_mask!(DATA_ADDR_BITS_IN_HIGHEST_SC, usize); // 0b111111111111101111111111111111111111111111111
 
 // We need to allocate extra bytes so that we can align the smmalloc base pointer so that all of the
 // trailing bits of the smmalloc base pointer are zeros.
 
-const BASEPTR_ALIGN: usize = (HIGHEST_SMALLOC_SLOT_BYTE_ADDR + 1).next_power_of_two(); // 0b1000000000000000000000000000000000000000000000
-const TOTAL_VIRTUAL_MEMORY: usize = HIGHEST_SMALLOC_SLOT_BYTE_ADDR + BASEPTR_ALIGN - 1; // 0b1111111111111101111111111111111111111111111110 == 70_366_596_694_014
+const BASEPTR_ALIGN: usize = (HIGHEST_SMMALLOC_SLOT_BYTE_ADDR + 1).next_power_of_two(); // 0b1000000000000000000000000000000000000000000000
+const TOTAL_VIRTUAL_MEMORY: usize = HIGHEST_SMMALLOC_SLOT_BYTE_ADDR + BASEPTR_ALIGN - 1; // 0b1111111111111101111111111111111111111111111110 == 70_366_596_694_014
 
 
 // --- Implementation ---

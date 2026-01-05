@@ -22,7 +22,7 @@ pub mod dev_instance {
     pub static mut DEV_SMMALLOC: Smmalloc = Smmalloc::new();
 
     #[macro_export]
-    macro_rules! get_devsmalloc {
+    macro_rules! get_devsmmalloc {
         () => {
             unsafe { &*std::ptr::addr_of!($crate::dev_instance::DEV_SMMALLOC) }
         };

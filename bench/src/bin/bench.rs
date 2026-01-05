@@ -107,7 +107,7 @@ pub fn main() {
     } else {
         if thorough {
             let l = Layout::from_size_align(32, 1).unwrap();
-            let sm = devutils::get_devsmalloc!();
+            let sm = devutils::get_devsmmalloc!();
             sm.idempotent_init();
 
             multithread_hotspot!(one_ad, THREADS_THAT_CAN_FIT_INTO_SLABS, iters_many, num_batches, sm, l);
