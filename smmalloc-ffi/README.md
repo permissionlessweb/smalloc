@@ -1,6 +1,6 @@
-# smalloc-ffi -- a simple memory allocator for C/C++/native code
+# smmalloc-ffi -- a simple memory allocator for C/C++/native code
 
-Build the `smalloc-ffi` crate, which produces shared and static libs. Arrange linking so that uses
+Build the `smmalloc-ffi` crate, which produces shared and static libs. Arrange linking so that uses
 of `malloc`, `free`, and `realloc` will link to those functions.
 
 Dynamic linking on Linux:

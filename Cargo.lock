@@ -82,7 +82,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hellosmalloc"
+name = "hellosmmalloc"
 version = "7.4.9"
 dependencies = [
  "smmalloc",
@@ -180,19 +180,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
-name = "smalloc-ffi"
-version = "7.4.9"
-dependencies = [
- "smmalloc",
-]
-
-[[package]]
 name = "smmalloc"
 version = "7.4.9"
 dependencies = [
  "devutils",
  "mach-sys",
  "rustix",
+]
+
+[[package]]
+name = "smmalloc-ffi"
+version = "7.4.9"
+dependencies = [
+ "smmalloc",
 ]
 
 [[package]]

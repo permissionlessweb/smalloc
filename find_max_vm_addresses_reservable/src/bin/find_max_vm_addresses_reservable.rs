@@ -9,19 +9,19 @@
 // On a Windows 11 machine in Ubuntu in Windows Subsystem for Linux 2, the amount I was able to mmap() varied. One time I could mmap() only 93,979,814,301,696
 // According to https://learn.microsoft.com/en-us/windows/win32/memory/memory-limits-for-windows-releases a 64-bit process can access 128 TiB.
 //
-// The current settings of smalloc (v4.0.0) require 59,785,944,760,326 bytes of virtual address space.
+// The current settings of smmalloc (v4.0.0) require 59,785,944,760,326 bytes of virtual address space.
 //
-// Now working on smalloc v5.0.0 which requires only 29,824,252,903,423 bytes of virtual address space.
+// Now working on smmalloc v5.0.0 which requires only 29,824,252,903,423 bytes of virtual address space.
 //
-// 2025-11-29: The current smalloc (v6.0.4) requires 17,313,013,178,111 bytes.
+// 2025-11-29: The current smmalloc (v6.0.4) requires 17,313,013,178,111 bytes.
 //
-// 2025-11-29: The current smalloc (v6.0.5) requires 35,175,782,162,431 bytes.
+// 2025-11-29: The current smmalloc (v6.0.5) requires 35,175,782,162,431 bytes.
 //
-// 2025-11-30: The current smalloc (v6.1.0) requires 70,360,154,259,455 bytes.
+// 2025-11-30: The current smmalloc (v6.1.0) requires 70,360,154,259,455 bytes.
 //
-// 2025-12-11: The current smalloc (v7.1.0) requires 70,360,449,210,367 bytes.
+// 2025-12-11: The current smmalloc (v7.1.0) requires 70,360,449,210,367 bytes.
 // 
-// 2025-12-16: The current smalloc (v7.2.0) requires 70,366,596,694,014 bytes.
+// 2025-12-16: The current smmalloc (v7.2.0) requires 70,366,596,694,014 bytes.
 
 
 

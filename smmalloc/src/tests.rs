@@ -275,7 +275,7 @@ fn help_test_overflow_to_other_sizeclass_twice_in_a_row(sc: u8) {
 /// Allocate this size+align three times, then free the middle one, then allocate a fourth time,
 /// then assert that the fourth slot is the same as the second slot. Also asserts that the
 /// slab num is the same as this thread num.
-fn help_alloc_four_times_singlethreaded(sm: &Smalloc, reqsize: usize, reqalign: usize) {
+fn help_alloc_four_times_singlethreaded(sm: &Smmalloc, reqsize: usize, reqalign: usize) {
     assert!(reqsize > 0);
     assert!(reqsize <= help_slotsize(NUM_SCS - 1));
     assert!(reqalign > 0);
@@ -554,8 +554,8 @@ nextest_unit_tests! {
                     assert!(slotnum2 < 2usize.pow(32));
                     let slotnum2 = slotnum2 as u32;
                     if slotnum1 < sentinel_slotnum as u32 && slotnum2 <= sentinel_slotnum && slotnum1 != slotnum2 {
-                        let ence = Smalloc::encode_next_entry_link(slotnum1, slotnum2, sentinel_slotnum);
-                        let dece = Smalloc::decode_next_entry_link(slotnum1, ence, sentinel_slotnum);
+                        let ence = Smmalloc::encode_next_entry_link(slotnum1, slotnum2, sentinel_slotnum);
+                        let dece = Smmalloc::decode_next_entry_link(slotnum1, ence, sentinel_slotnum);
                         assert_eq!(slotnum2, dece, "slotnum1: {slotnum1}, ence: {ence}, sc: {sc}");
                     }
                 }
@@ -573,7 +573,7 @@ nextest_unit_tests! {
     }
 }
 
-impl Smalloc {
+impl Smmalloc {
     fn help_set_flh_singlethreaded(&self, sc: u8, slotnum: u32, slabnum: u8) {
         debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
         debug_assert!(sc < NUM_SCS);
@@ -626,7 +626,7 @@ fn alignedsize_or(size: usize, align: usize) -> usize {
 
 /// Generate a number of requests (size+alignment) that fit into the given slab and for each
 /// request call help_alloc_four_times_singlethreaded()
-fn help_alloc_diff_size_and_alignment_singlethreaded(sm: &Smalloc, sc: u8) {
+fn help_alloc_diff_size_and_alignment_singlethreaded(sm: &Smmalloc, sc: u8) {
     debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
     debug_assert!(sc < NUM_SCS);
 
@@ -650,9 +650,9 @@ fn help_alloc_diff_size_and_alignment_singlethreaded(sm: &Smalloc, sc: u8) {
     }
 }
 
-static mut UNIT_TEST_ALLOC: Smalloc = Smalloc::new();
+static mut UNIT_TEST_ALLOC: Smmalloc = Smmalloc::new();
 
-fn get_testsmalloc() -> &'static Smalloc {
+fn get_testsmalloc() -> &'static Smmalloc {
     let res = unsafe { &*std::ptr::addr_of!(UNIT_TEST_ALLOC) };
     res.idempotent_init();
     res
@@ -680,7 +680,7 @@ macro_rules! nextest_unit_tests {
     };
 }
 
-use crate::Smalloc;
+use crate::Smmalloc;
 use std::sync::atomic::Ordering::Relaxed;
 use crate::*;
 use std::alloc::{Layout, GlobalAlloc};

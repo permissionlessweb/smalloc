@@ -18,8 +18,8 @@ use std::alloc::Layout;
 
 // For testing and benchmarking only.
 pub mod dev_instance {
-    use smalloc::*;
-    pub static mut DEV_SMALLOC: Smalloc = Smalloc::new();
+    use smmalloc::*;
+    pub static mut DEV_SMALLOC: Smmalloc = Smmalloc::new();
 
     #[macro_export]
     macro_rules! get_devsmalloc {

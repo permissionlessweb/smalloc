@@ -1,9 +1,9 @@
-use smalloc::Smalloc;
+use smmalloc::Smmalloc;
 #[global_allocator]
-static ALLOC: Smalloc = Smalloc::new();
+static ALLOC: Smmalloc = Smmalloc::new();
 
 pub fn main() {
-    println!("Hello, world! I'm smalloc. :-)");
+    println!("Hello, world! I'm smmalloc. :-)");
 
     const NUM_ELEMS: usize = 9999;
 

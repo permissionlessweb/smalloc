@@ -6,7 +6,7 @@
 //
 // Each allocator entry is: (display_name, constructor)
 //
-// - display_name: Used in comparison output (e.g., "smalloc diff from mimalloc: +5%")
+// - display_name: Used in comparison output (e.g., "smmalloc diff from mimalloc: +5%")
 // - constructor: Expression that creates the allocator instance
 
 #[macro_export]
@@ -16,7 +16,7 @@ macro_rules! with_all_allocators {
             $($args)*;
             @allocators
                 "default", $crate::GlobalAllocWrap;
-                @candidate "smalloc", devutils::get_devsmalloc!();
+                @candidate "smmalloc", devutils::get_devsmalloc!();
                 @optional_allocators
                     #[cfg(feature = "mimalloc")] "mimalloc", mimalloc::MiMalloc;
                     #[cfg(feature = "jemalloc")] "jemalloc", tikv_jemallocator::Jemalloc;
@@ -222,7 +222,7 @@ where
     T: GlobalAlloc + Send + Sync,
     F: Fn(&T, &mut TestState) + Sync + Send + Copy + 'static
 {
-    // If you want to stress test smalloc, it is best for this to equal 2^NUM_SLABS_BITS.
+    // If you want to stress test smmalloc, it is best for this to equal 2^NUM_SLABS_BITS.
     const NUM_SLABS: usize = 32;
 
     let hotspot_threads_usize = hotspot_threads as usize;
@@ -317,7 +317,7 @@ where
 pub fn print_comparisons(candidate_ns: Nanoseconds, baseline_nses: &[(&str, Nanoseconds)]) {
     for (name, baseline_ns) in baseline_nses {
         let diff_perc = candidate_ns.diff_percent(*baseline_ns);
-        println!("smalloc diff from {name:>8}: {diff_perc:+4.0}%");
+        println!("smmalloc diff from {name:>8}: {diff_perc:+4.0}%");
     }
     println!();
 }
@@ -333,7 +333,7 @@ macro_rules! st_bench {
         sm.idempotent_init();
 
         let func_name = stringify!($func);
-        let f = |al: &smalloc::Smalloc, s: &mut TestState| { $func(al, s) };
+        let f = |al: &smmalloc::Smmalloc, s: &mut TestState| { $func(al, s) };
         let name = format!("s_st_{func_name}-1");
         $crate::singlethread_bench(f, $iters_per_batch, $num_batches, &name, &sm, $seed);
     }};
@@ -370,7 +370,7 @@ macro_rules! compare_st_bench_impl {
             }
         )*
 
-        // candidate alloc (smalloc)
+        // candidate alloc (smmalloc)
         {
             let short = $crate::short_name($cand_display);
             let name = format!("{}_st_{}-1", short, stringify!($func));
@@ -399,7 +399,7 @@ macro_rules! mt_bench {
         sm.idempotent_init();
 
         let func_name = stringify!($func);
-        let f = |al: &smalloc::Smalloc, s: &mut TestState| { $func(al, s) };
+        let f = |al: &smmalloc::Smmalloc, s: &mut TestState| { $func(al, s) };
         let name = format!("s_mt_{func_name}-{}", $threads);
         $crate::multithread_bench(f, $threads, $iters_per_batch, $num_batches, &name, &sm, $seed);
     }};
@@ -436,7 +436,7 @@ macro_rules! compare_mt_bench_impl {
             }
         )*
 
-        // candidate alloc (smalloc)
+        // candidate alloc (smmalloc)
         {
             let short = $crate::short_name($cand_display);
             let name = format!("{}_mt_{}-{}", short, stringify!($func), $threads);
@@ -485,7 +485,7 @@ macro_rules! compare_fh_bench_impl {
             }
         )*
 
-        // candidate alloc (smalloc)
+        // candidate alloc (smmalloc)
         {
             let short = $crate::short_name($cand_display);
             let name = format!("{}_fh-{}", short, $threads);
@@ -539,7 +539,7 @@ macro_rules! compare_hs_bench_impl {
             }
         )*
 
-        // candidate alloc (smalloc)
+        // candidate alloc (smmalloc)
         {
             let short = $crate::short_name($cand_display);
             let name = format!("{}_hs-{}", short, stringify!($func));

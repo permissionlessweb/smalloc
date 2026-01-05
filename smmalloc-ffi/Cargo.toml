@@ -1,5 +1,5 @@
 [package]
-name = "smalloc-ffi"
+name = "smmalloc-ffi"
 version.workspace = true
 edition.workspace = true
 
@@ -7,7 +7,7 @@ edition.workspace = true
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-smalloc = { path = "../smalloc", package = "smmalloc" }
+smmalloc = { path = "../smmalloc", package = "smmalloc" }
 
 [features]
 growers = []

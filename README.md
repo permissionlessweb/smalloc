@@ -1,10 +1,10 @@
-# smalloc -- a simple memory allocator
+# smmalloc -- a simple memory allocator
 
-`smalloc` is suitable as a drop-in replacement for `ptmalloc2` (the glibc memory allocator),
+`smmalloc` is suitable as a drop-in replacement for `ptmalloc2` (the glibc memory allocator),
 `libmalloc` (the Macos userspace memory allocator), `jemalloc`, `mimalloc`, `snmalloc`, `rpmalloc`,
 etc.
 
-`smalloc` performs comparably or even better than those other memory managers, while being much
+`smmalloc` performs comparably or even better than those other memory managers, while being much
 simpler. The current implementation is only 286 lines of Rust code! The other high-quality memory
 allocators range from 2,509 lines of code (`rpmalloc`) to 25,713 lines of code (`jemalloc`).
 
@@ -15,18 +15,18 @@ consistent and debuggable behavior.
 
 No warranty. Use at your own risk.
 
-`smalloc` doesn't have any features for hardening your process against exploitation of memory
+`smmalloc` doesn't have any features for hardening your process against exploitation of memory
 management bugs.
 
 # Performance
 
-See [./bench/README.md](./bench/README.md) for various ways to benchmark `smalloc` and compare it to
+See [./bench/README.md](./bench/README.md) for various ways to benchmark `smmalloc` and compare it to
 the default memory allocator, `jemalloc`, `snmalloc`, `mimalloc`, and `rpmalloc`.
 
-Here are two data points to demonstrate that `smalloc` is sometimes faster than the
+Here are two data points to demonstrate that `smmalloc` is sometimes faster than the
 alternatives. See the [./bench/results/](./bench/results/) directory for more results.
 
-From `smalloc`'s bench tool:
+From `smmalloc`'s bench tool:
 
 ```text
 name:     de_mt_aww-32, threads:    32, iters:       2000, ns:        814,375, ns/i:      407.1
@@ -35,18 +35,18 @@ name:     je_mt_aww-32, threads:    32, iters:       2000, ns:      9,878,000, n
 name:     sn_mt_aww-32, threads:    32, iters:       2000, ns:      1,277,959, ns/i:      638.9
 name:     rp_mt_aww-32, threads:    32, iters:       2000, ns:        756,750, ns/i:      378.3
 name:      s_mt_aww-32, threads:    32, iters:       2000, ns:        346,541, ns/i:      173.2
-smalloc diff from  default:  -57%
-smalloc diff from mimalloc:  -81%
-smalloc diff from jemalloc:  -96%
-smalloc diff from snmalloc:  -73%
-smalloc diff from rpmalloc:  -54%
+smmalloc diff from  default:  -57%
+smmalloc diff from mimalloc:  -81%
+smmalloc diff from jemalloc:  -96%
+smmalloc diff from snmalloc:  -73%
+smmalloc diff from rpmalloc:  -54%
 ```
 
 From `simd-json`'s benchmarks:
 
 ```text
-% ./critcmp.py default jemalloc snmalloc mimalloc rpmalloc smalloc
-test                                                                            default                jemalloc                snmalloc                mimalloc                rpmalloc                 smalloc
+% ./critcmp.py default jemalloc snmalloc mimalloc rpmalloc smmalloc
+test                                                                            default                jemalloc                snmalloc                mimalloc                rpmalloc                 smmalloc
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 apache_builds/simd_json::to_borrowed_value                            77.35 µs (  0.0%)       79.58 µs ( +2.9%)       79.20 µs ( +2.4%)       66.16 µs (-14.5%)       65.86 µs (-14.9%)       64.97 µs (-16.0%)
 apache_builds/simd_json::to_borrowed_value_with_buffers               75.64 µs (  0.0%)       78.14 µs ( +3.3%)       66.41 µs (-12.2%)       64.59 µs (-14.6%)       65.75 µs (-13.1%)       64.19 µs (-15.1%)
@@ -81,26 +81,26 @@ There are two limitations:
 1. You can't allocate more than 2 GiB in a single `malloc()`, and you can only allocate at most 224
    allocations between 1 GiB and 2 GiB, plus at most 480 allocations between 512 MiB and 1 GiB, plus
    at most 992 allocations between 256 MiB and 512 MiB, and so on (see `Figure 1` for details). If
-   all of smalloc's slots are exhausted so that it cannot deliver a requested allocation, then it
-   will return a null pointer. (It would be possible to make a variant of smalloc that falls back to
+   all of smmalloc's slots are exhausted so that it cannot deliver a requested allocation, then it
+   will return a null pointer. (It would be possible to make a variant of smmalloc that falls back to
    the default allocator or to `mmap` in that case, but that would result in performance degradation
-   and possibly in less predictable failure modes. I want smalloc to have consistent performance and
+   and possibly in less predictable failure modes. I want smmalloc to have consistent performance and
    failure modes so I choose to return a null pointer in that case.)
-   
-2. You can't instantiate more than one instance of `smalloc` in a single process.
 
-If you run into either of these limitations in practice, please open an issue on the `smalloc`
+2. You can't instantiate more than one instance of `smmalloc` in a single process.
+
+If you run into either of these limitations in practice, please open an issue on the `smmalloc`
 github repository. It would be possible in theory to lift these limitations, but I'd like to know if
 it is needed in practice before complicating the code to do so.
 
 # Usage in Rust Code
 
-Add `smalloc` to your Cargo.toml by executing `cargo add smalloc`, then add this to your code:
+Add `smmalloc` to your Cargo.toml by executing `cargo add smmalloc`, then add this to your code:
 
 ```
-use smalloc::Smalloc;
+use smmalloc::Smmalloc;
 #[global_allocator]
-static ALLOC: Smalloc = Smalloc::new();
+static ALLOC: Smmalloc = Smmalloc::new();
 ```
 
 That's it! There are no other features you could consider using, no other changes you need to make,
@@ -108,7 +108,7 @@ no configuration options, no tuning options, no nothing.
 
 # Usage in C/C++/native code
 
-See [./smalloc-ffi/README.md](./smalloc-ffi/README.md).
+See [./smmalloc-ffi/README.md](./smmalloc-ffi/README.md).
 
 # Tests
 
@@ -132,34 +132,35 @@ cargo nextest run
 
 This workspace contains six packages:
 
- * _smalloc_: the core memory allocator. This package contains the only code you need to use smalloc
+* _smalloc_: the core memory allocator. This package contains the only code you need to use smmalloc
    as the global allocator in your Rust code.
- * _smalloc-ffi_: Foreign Function Interface to use smalloc from C/C++/native code.
- * _bench_: micro-benchmarking tool to measure latency of operations and compare to other memory
+* _smalloc-ffi_: Foreign Function Interface to use smmalloc from C/C++/native code.
+* _bench_: micro-benchmarking tool to measure latency of operations and compare to other memory
    allocators
- * _hellomalloc_: a sample app that shows how to make smalloc be the global allocator in Rust code
- * _find_max_vm_addresses_reservable_: a tool used in the development of smalloc to determine how much
+* _hellomalloc_: a sample app that shows how to make smmalloc be the global allocator in Rust code
+* _find_max_vm_addresses_reservable_: a tool used in the development of smmalloc to determine how much
    virtual address is allocatable on the current system
- * _devutils_: code used in both tests and benchmarks
+* _devutils_: code used in both tests and benchmarks
 
 ## Organization of the core code
 
-Within the smalloc package, there are four files:
- * _smalloc/src/lib.rs_: the core memory allocator
- * _smalloc/src/plat/mod.rs_: interface to the operating system's `mmap` or equivalent system call
+Within the smmalloc package, there are four files:
+
+* _smalloc/src/lib.rs_: the core memory allocator
+* _smalloc/src/plat/mod.rs_: interface to the operating system's `mmap` or equivalent system call
    to reserve virtual address space
 
-These two files contain the only source code you are relying on if you use smalloc as the global
+These two files contain the only source code you are relying on if you use smmalloc as the global
 allocator in Rust.
 
- * _smalloc/src/tests.rs_: transparent-box tests that use internals of the core to test it
- * _smalloc/tests/integration.rs_: opaque-box tests that use only the public API
- 
+* _smalloc/src/tests.rs_: transparent-box tests that use internals of the core to test it
+* _smalloc/tests/integration.rs_: opaque-box tests that use only the public API
+
 # How it works
 
 ## The Big Idea
 
-`smalloc`'s big idea is that although touching memory (i.e. reading or writing a specific memory
+`smmalloc`'s big idea is that although touching memory (i.e. reading or writing a specific memory
 location) imposes costs on the operating system's virtual memory subsystem, reserving virtual memory
 address space does not. Virtual memory addresses are a free and near-limitless resource. Use that
 big idea by reserving a huge swathe of virtual memory addresses that you will use only sparsely.
@@ -175,7 +176,7 @@ efficient in execution.
 
 ### Slots, Slabs, and Size Classes
 
-All memory managed by `smalloc` is organized into "slabs". A slab is a fixed-length array of
+All memory managed by `smmalloc` is organized into "slabs". A slab is a fixed-length array of
 fixed-length "slots" of bytes. Every pointer returned by a call to `malloc()` or `realloc()` is a
 pointer to the beginning of one of those slots, and that slot is used exclusively for that memory
 allocation until it is `free()`'ed.
@@ -270,7 +271,7 @@ list entry (or the sentinel value if there are no entries in the list). This var
 "free-list head" and is abbreviated `flh`. The contents of the free list head is the only additional
 information you need to read or write beside the information present in the pointers themselves.
 
-That's it! Those are all the data elements in `smalloc`.
+That's it! Those are all the data elements in `smmalloc`.
 
 ## Algorithms, Simplified
 
@@ -299,7 +300,7 @@ then allocate a new slot (just like in `malloc()`, above). Then `memcpy()` the c
 current slot into the beginning of that new slot, deallocate the current slot (just like in
 `free()`, above) and return the pointer to the new slot.
 
-That's it! You could stop reading here and you'd have a basic knowledge of the design of `smalloc`.
+That's it! You could stop reading here and you'd have a basic knowledge of the design of `smmalloc`.
 
 ## The Free Lists in More Detail
 
@@ -322,8 +323,8 @@ colleagues at Shielded Labs (makers of fine Zcash protocol upgrades), for explai
 
 So to satisfy a `malloc()` by popping the head slot from the free list, take the value from the
 `flh`, use that value as a pointer to a slot (which is the first entry in the free list), and then
-read the *contents* of that slot as the pointer to the next entry in the free list. Overwrite the
-value in `flh` with the pointer of that *next* entry and you're done popping the head of the free
+read the _contents_ of that slot as the pointer to the next entry in the free list. Overwrite the
+value in `flh` with the pointer of that _next_ entry and you're done popping the head of the free
 list.
 
 To push an slot onto the free list (in order to implement `free()`), you are given the pointer of
@@ -357,10 +358,10 @@ is the "sentinel value" meaning no next entry.
 
 ## Thread-Safe `flh` Updates
 
-To make `smalloc` behave correctly under multiprocessing, it is necessary and sufficient to perform
+To make `smmalloc` behave correctly under multiprocessing, it is necessary and sufficient to perform
 thread-safe updates to `flh`. Use a simple loop with atomic compare-and-exchange operations.
 
-### To pop an entry from the free list:
+### To pop an entry from the free list
 
 1. Load the value from `flh` into a local variable/register, `firstslotnum`. This is the slot number
    of the first entry in the free list.
@@ -376,7 +377,7 @@ thread-safe updates to `flh`. Use a simple loop with atomic compare-and-exchange
 
 Now you've thread-safely popped the head of the free list into `firstslotnum`.
 
-### To push an entry onto the free list, where `newslotnum` is the number of the slot to push:
+### To push an entry onto the free list, where `newslotnum` is the number of the slot to push
 
 1. Load the value from `flh` into a local variable/register, `firstslotnum`.
 2. Store the value from `firstslotnum` (encoded as a next-entry pointer) into the slot with slot
@@ -405,7 +406,7 @@ that counter each time you attempt a compare-and-exchange on a push (`free`). No
 pushes concurrently completed between step 1 of the pop algorithm and step 4, the
 compare-and-exchange will fail.
 
-Now you know the entire data model and almost all of the algorithms for `smalloc`! Read on for a few
+Now you know the entire data model and almost all of the algorithms for `smmalloc`! Read on for a few
 more details.
 
 ## Separate Threads Use Separate Slabs
@@ -417,7 +418,7 @@ minimize `flh`-update collisions, and for slots small enough to pack into a cach
 tend to increase "true-sharing" -- cache-line-sharing between multiple allocations accessed from the
 same processor as each other.
 
-To do this, define a global static variable named `GLOBAL_THREAD_NUM`, initialized to `0`. 
+To do this, define a global static variable named `GLOBAL_THREAD_NUM`, initialized to `0`.
 
 Give each thread a thread-local variable named `SLABNUM`. The first time `alloc()` is called from
 within a given thread, use the atomic `fetch_add` operation to increment `GLOBAL_THREAD_NUM` and set
@@ -439,7 +440,7 @@ succeeds, update your thread's `SLABNUM` to point to this new slab. If this atte
 either of those two reasons, then try yet another different slab in the same size class. If you've
 tried every slab in this size class, and they've all failed (whether due to that slab being
 exhausted or due to encountering an `flh` update collision when trying to pop from that slab's free
-list), then *if* at least one slab was exhausted, move to the next bigger size class and continue
+list), then _if_ at least one slab was exhausted, move to the next bigger size class and continue
 trying. (Thanks to Nate Wilcox -- also my colleague at Shielded Labs -- for suggesting this
 technique to me.) On the other hand, if none of the slabs were exhausted, then continue cycling
 through them trying to allocate from one of them.
@@ -477,10 +478,10 @@ new starting adddress.
 
 # Design Goals
 
-Why `smalloc` is beautiful in my eyes.
+Why `smmalloc` is beautiful in my eyes.
 
 If you accept the Big Idea that "avoiding reserving too much virtual address space" is not an
-important goal for a memory manager, what *are* good goals? `smalloc` was designed with the
+important goal for a memory manager, what _are_ good goals? `smmalloc` was designed with the
 following goals, written here in roughly descending order of importance:
 
 1. Be simple. This helps greatly to ensure correctness -- always a critical issue in
@@ -492,7 +493,7 @@ following goals, written here in roughly descending order of importance:
 
    Simplicity also facilitates making improvements to the codebase and learning from the codebase.
 
-   I've tried to pay the price of keeping `smalloc` simple while designing and implementing it.
+   I've tried to pay the price of keeping `smmalloc` simple while designing and implementing it.
 
 2. Place user data where it can benefit from caching.
 
@@ -506,7 +507,7 @@ following goals, written here in roughly descending order of importance:
 
    2. On the other hand, if multiple different CPU cores access different allocations in parallel,
       and the allocations are packed into the same cache line as each other, then this causes a
-      substantial performance *degradation*, as the CPU has to stall the cores while propagating
+      substantial performance _degradation_, as the CPU has to stall the cores while propagating
       their accesses of the shared memory. This is called "false sharing" or "destructive cache
       interference". The magnitude of the performance impact is the similar to that of true sharing:
       false sharing can impose tens or hundreds of cycles of penalty on a single memory
@@ -517,13 +518,13 @@ following goals, written here in roughly descending order of importance:
       of whether the accesses are by the same processor or from different processors. If the
       allocations are packed into the same memory page, this avoids potentially costly TLB cache
       misses and page faults. In the worst case, the kernel would have to load the data from swap,
-      which could incur a performance penalty of hundreds of *thousands* of CPU cycles or even more,
+      which could incur a performance penalty of hundreds of _thousands_ of CPU cycles or even more,
       depending on the performance of the persistent storage. Additionally, faulting in a page of
       memory increases the pressure on the TLB cache and the swap subsystem, thus potentially
       causing a performance degradation for other processes running on the same system.
 
    Note that these three goals cannot be fully optimized by the memory manager, because they depend
-   on how the user code accesses the memory. What `smalloc` does is use some simple heuristics
+   on how the user code accesses the memory. What `smmalloc` does is use some simple heuristics
    intended to optimize the above goals under some reasonable assumptions about the behavior of the
    user code:
 
@@ -535,13 +536,13 @@ following goals, written here in roughly descending order of importance:
       allocations requested by a single thread are less likely to later be accessed simultaneously
       by multiple different threads. You can imagine user code which violates this assumption --
       having one thread allocate many small allocations and then handing them out to other
-      threads/cores which then access them in parallel with one another. Under `smalloc`'s current
+      threads/cores which then access them in parallel with one another. Under `smmalloc`'s current
       design, this behavior could result in a lot of "destructive cache interference"/"false
       sharing". However, I can't think of a simple way to avoid this bad case without sacrificing
       the benefits of "constructive cache interference"/"true sharing" that we get by packing
       together allocations that then get accessed by the same core.
 
-   3. When allocations are freed by the user code, `smalloc` pushes their slot to the front of a
+   3. When allocations are freed by the user code, `smmalloc` pushes their slot to the front of a
       free list. When allocations are subsequently requested, the most recently free'd slots are
       returned first. This is a LIFO (stack) pattern, which means user code that tends to access its
       allocations in a stack-like way will enjoy improved caching. (Thanks to Andrew Reece from
@@ -549,27 +550,27 @@ following goals, written here in roughly descending order of importance:
 
    4. The same strategies also tend to pack allocations together into pages of virtual memory.
 
-3. Execute `malloc()`, `free()`, and `realloc()` as efficiently as possible. `smalloc` is great at
+3. Execute `malloc()`, `free()`, and `realloc()` as efficiently as possible. `smmalloc` is great at
    this goal! The obvious reason for that is that the code implementing those three functions is
-   *very simple* -- it needs to execute only a few CPU instructions to implement each of those
+   _very simple_ -- it needs to execute only a few CPU instructions to implement each of those
    functions.
 
-   A perhaps less-obvious reason is that there is *minimal data-dependency* in those code paths.
+   A perhaps less-obvious reason is that there is _minimal data-dependency_ in those code paths.
 
    Think about how many loads of memory from different locations, and therefore
    potential-cache-misses, your process incurs to execute `malloc()` and then to write into the
    memory that `malloc()` returned. It has to be at least one, because you are eventually going to
    pay the cost of a potential-cache-miss to write into the memory that `malloc()` returned.
 
-   To execute `smalloc`'s `malloc()` and then write into the resulting memory takes, in the common
+   To execute `smmalloc`'s `malloc()` and then write into the resulting memory takes, in the common
    case, at most three cache misses.
 
-   The main reason `smalloc` incurs so few potential-cache-misses in these code paths is the
-   sparseness of the data layout. `smalloc` has pre-reserved a vast swathe of address space and
+   The main reason `smmalloc` incurs so few potential-cache-misses in these code paths is the
+   sparseness of the data layout. `smmalloc` has pre-reserved a vast swathe of address space and
    "laid out" unique locations for all of its slabs, slots, and variables (but only virtually --
    "laying the locations out" in this way does not involve reading or writing any actual memory).
-    
-   Therefore, `smalloc` can calculate the location of a valid slab to serve this call to `malloc()`
+
+   Therefore, `smmalloc` can calculate the location of a valid slab to serve this call to `malloc()`
    using only one or two data inputs: One, the requested size and alignment (which are on the stack
    in the function arguments and do not incur a potential-cache-miss) and two the slab number (which
    is in thread-local storage: one potential-cache-miss). Having computed the location of the slab,
@@ -577,7 +578,7 @@ following goals, written here in roughly descending order of importance:
    data it needs to compute the exact location of the resulting slot and to update the free
    list.
 
-   For the implementation of `free()`, we need to use *only* the pointer to be freed (which is on
+   For the implementation of `free()`, we need to use _only_ the pointer to be freed (which is on
    the stack in an argument -- not a potential-cache-miss) in order to calculate the precise
    location of the slot and the slab to be freed. From there, it needs to access the `flh` for that
    slab (one potential-cache-miss).
@@ -588,7 +589,7 @@ following goals, written here in roughly descending order of importance:
    code accesses the memory returned from `malloc()` after `malloc()` returns but before the cache
    line gets flushed from the cache, there is no additional cache-miss penalty from `malloc()`
    accessing it before returning. Likewise, if the user code has recently accessed the memory to be
-   freed before calling `free()` on it, then `smalloc`'s access of the same space to store the next
+   freed before calling `free()` on it, then `smmalloc`'s access of the same space to store the next
    free-list pointer will incur no additional cache-miss. (Thanks to Sam Smith from Shielded Labs
    for telling me this.)
 
@@ -602,14 +603,14 @@ following goals, written here in roughly descending order of importance:
 
      For a total of 3 potential-cache-misses.
 
-   2. To read from some memory and then `free()` it:
+   1. To read from some memory and then `free()` it:
      * 🟠 one for the user code to read from the memory
      * 🟠 one to access the slab's `flh`
      * 🟢 no additional cache-miss for `free()` to access the intrusive free list entry
 
      For a total of 2 potential-cache-misses.
 
-   3. To `free()` some memory without first reading it:
+   1. To `free()` some memory without first reading it:
      * 🟢 no cache-miss for user code since it doesn't read the memory
      * 🟠 one to access the slab's `flh`
      * 🟠 one to access the intrusive free list entry
@@ -619,42 +620,42 @@ following goals, written here in roughly descending order of importance:
    Note that the above counts do not count a potential cache miss to access the base pointer. That's
    because the base pointer is fixed and shared -- every call by any thread to `malloc()`, `free()`,
    or `realloc()` accesses the base pointer, so it is more likely to be in cache.
-   
+
    Similarly, for accessing the `SLABNUM`, if this thread has recently called `malloc()` then this
    thread's `SLABNUM` will likely already be in cache, but if this thread has not made such a call
    recently then it would likely cache-miss.
-   
+
    And similarly for the potential cache-miss of accessing the `flh` -- if any thread using this
    slab has recently called `malloc()`, `free()`, or `realloc()` for an allocation of this size
    class, then the `flh` for this slab will already be in cache.
 
-4. Be *consistently* efficient.
+4. Be _consistently_ efficient.
 
    I want to avoid unpredictable performance degradation, such as when your function takes little
    time to execute usually, but occasionally there is a latency spike when the function takes much
    longer to execute.
 
-   I also want to minimize the number of scenarios in which `smalloc`'s performance degrades due to
-   the user code's behavior triggering an "edge case" or a "worst case scenario" in `smalloc`'s
+   I also want to minimize the number of scenarios in which `smmalloc`'s performance degrades due to
+   the user code's behavior triggering an "edge case" or a "worst case scenario" in `smmalloc`'s
    design.
-    
+
    The story sketched out above about user code allocating small allocations on one thread and then
    handing them out to other threads to access and potentially to `free()` is an example of how user
-   code behavior could trigger a performance degradation in `smalloc`.
+   code behavior could trigger a performance degradation in `smmalloc`.
 
-   On the bright side, I can't think of any *other* "worst case scenarios" for `smalloc` beyond that
-   one. In particular, `smalloc` never has to "rebalance" or re-arrange its data structures, or do
+   On the bright side, I can't think of any _other_ "worst case scenarios" for `smmalloc` beyond that
+   one. In particular, `smmalloc` never has to "rebalance" or re-arrange its data structures, or do
    any "deferred accounting". This nicely eliminates some sources of intermittent performance
    degradation. See [this blog post](https://pwy.io/posts/mimalloc-cigarette/) and [this
    one](https://hackmd.io/sH315lO2RuicY-SEt7ynGA?view#jemalloc-purging-will-commence-in-ten-seconds)
    for cautionary tales of how some techniques can improve performance in the common case, but also
    occasionally degrade performance or cause confusing failure modes.
 
-   There are no locks in `smalloc`. There are concurrent-update loops in `malloc` and `free` -- see
+   There are no locks in `smmalloc`. There are concurrent-update loops in `malloc` and `free` -- see
    the pseudo-code in "Thread-Safe State Changes" above -- but these are not locks. Whenever
    multiple threads are running that code, one of them will make progress (i.e. successfully update
    the `flh`) after only a few CPU cycles, regardless of what any other threads do. And, if any
-   thread becomes suspended in that code, one of the *other*, still-running threads will be the one
+   thread becomes suspended in that code, one of the _other_, still-running threads will be the one
    to make progress (update the `flh`). Therefore, these concurrent-update loops cannot cause a
    pile-up of threads waiting for a (possibly-suspended) thread to release a lock, nor can they
    suffer from priority inversion.
@@ -663,18 +664,18 @@ following goals, written here in roughly descending order of importance:
    immediately switch over to a different slab, which will quickly avoid out any such contention
    unless all slabs are simultaneously occupied by more than one thread actively `malloc()`'ing or
    `free()`'ing.
-   
+
    For `free()` it isn't possible to change slabs (the pointer to be freed needs to be pushed back
    onto this particular free list and no other), so multiple threads simultaneously attempting to
-   free slots in the same slab is the worst-case-scenario for `smalloc`.
+   free slots in the same slab is the worst-case-scenario for `smmalloc`.
 
-   See the benchmarks named `hs` (for "hotspot") and `fh` (for "free hotspot") for how `smalloc`
+   See the benchmarks named `hs` (for "hotspot") and `fh` (for "free hotspot") for how `smmalloc`
    currently performs in these worst-case-scenarios. It is less efficient than the best modern
    memory allocators (`mimalloc`, `snmalloc`, and `rpmalloc`) in the "free hotspot" scenario, but it
    is still very efficient, and in particular its performance is still consistent even in these
    worst-case-scenarios.
 
-5. (Optional, provisional goal) Efficiently support using `realloc()` to extend vectors. `smalloc`'s
+5. (Optional, provisional goal) Efficiently support using `realloc()` to extend vectors. `smmalloc`'s
    initial target user is Rust code, and Rust code uses a lot of Vectors, and not uncommonly it
    grows those Vectors dynamically, which results in a call to `realloc()` in the underlying memory
    manager. I hypothesized that this could be a substantial performance cost in real Rust
@@ -682,10 +683,10 @@ following goals, written here in roughly descending order of importance:
    indeed call `realloc()` quite often, to resize an existing allocation to larger, and in many
    cases it did so repeatedly in order to enlarge a Vector, then fill it with data until it was full
    again, and then enlarge it again, and so on. This can result in the underlying memory manager
-   having to copy the contents of the Vector over and over. `smalloc()` optimizes out much of that
+   having to copy the contents of the Vector over and over. `smmalloc()` optimizes out much of that
    copying of data -- see "Realloc Growers" above.
 
-`smalloc` appears to have achieved all five of these goals. If so, it may turn out to be a very
+`smmalloc` appears to have achieved all five of these goals. If so, it may turn out to be a very
 useful tool!
 
 # Open Issues / Future Work
@@ -706,7 +707,7 @@ useful tool!
 
 * Port to Cheri, add capability-safety
 
-* Try adding a dose of quint, VeriFast, *and* Miri! :-D
+* Try adding a dose of quint, VeriFast, _and_ Miri! :-D
 
 * And Loom! |-D
 
@@ -716,11 +717,11 @@ useful tool!
 
 * Try "tarpaulin" again HT Sean Bowe
 
-* If we could allocate even more virtual memory address space, `smalloc` could more scalable
+* If we could allocate even more virtual memory address space, `smmalloc` could more scalable
   (i.e. have more large slots, more per-thread slabs, etc). And you could have more than one
-  `smalloc` heap in a single process. Larger (than 48-bit) virtual memory addresses are already
+  `smmalloc` heap in a single process. Larger (than 48-bit) virtual memory addresses are already
   supported on most platforms/configurations, including almost all Linux desktop and server
-  platforms, and Windows, but not iOS or Android. We could consider creating a variant of `smalloc`
+  platforms, and Windows, but not iOS or Android. We could consider creating a variant of `smmalloc`
   that works only platforms with larger (than 48-bit) virtual memory addresses and offers these
   advantages.
 
@@ -728,16 +729,16 @@ useful tool!
 
 * make it work with valgrind
   * per the valgrind manual:
-    * smalloc should register the "pool anchor address" (in valgrind terminology) which is the smalloc base pointer, by calling `VALGRIND_CREATE_MEMPOOL()`.
-      * What `rzB` should we use? *think* We *could* add redzones, by choosing bigger slots and sliding-forward the pointer that we return from `alloc()`, but this would require us (smalloc) to slide-backward when calculating the slot location from the pointer in `dealloc()`. Why not!? It reduces computation efficiency a teeeny bit, reduces virtual-memory-efficiency (i.e. not "overhead" as other people seem to think about it, but cache, TLB, and swap efficiency), and complicates the code a little bit
-      * Should we use `is_zeroed`? I guess we can't because `is_zeroed` is, for valgrind, a flag that applies to an entire pool for its entire lifetime, and some smalloc allocations (`eac` ones) but not others (`flh` ones) are zeroed. Question: is there some kind of extension to valgrind through which we could mark only the non-zeroed ones as valgrind-`UNDEFINED`?
+    * smmalloc should register the "pool anchor address" (in valgrind terminology) which is the smmalloc base pointer, by calling `VALGRIND_CREATE_MEMPOOL()`.
+      * What `rzB` should we use? _think_ We _could_ add redzones, by choosing bigger slots and sliding-forward the pointer that we return from `alloc()`, but this would require us (smmalloc) to slide-backward when calculating the slot location from the pointer in `dealloc()`. Why not!? It reduces computation efficiency a teeeny bit, reduces virtual-memory-efficiency (i.e. not "overhead" as other people seem to think about it, but cache, TLB, and swap efficiency), and complicates the code a little bit
+      * Should we use `is_zeroed`? I guess we can't because `is_zeroed` is, for valgrind, a flag that applies to an entire pool for its entire lifetime, and some smmalloc allocations (`eac` ones) but not others (`flh` ones) are zeroed. Question: is there some kind of extension to valgrind through which we could mark only the non-zeroed ones as valgrind-`UNDEFINED`?
       * What about `flags` in `VALGRIND_CREATE_MEMPOOL_EXT()`?
-    * smalloc should mark the data area (which in valgrind terminology is called a "superblock" as `VALGRIND_MAKE_MEM_NOACCESS`
+    * smmalloc should mark the data area (which in valgrind terminology is called a "superblock" as `VALGRIND_MAKE_MEM_NOACCESS`
     * Should we use the `VALGRIND_MEMPOOL_METAPOOL` construct, or not?
-    * I *guess* we should use `VALGRIND_DESTROY_MEMPOOL()` at some kind of drop/tear-down/abort/unwind point? Or maybe not so that valgrind can complain to the user about so-called "leaks" from them not having `dealloc()`'ed all their `alloc()`'s?
+    * I _guess_ we should use `VALGRIND_DESTROY_MEMPOOL()` at some kind of drop/tear-down/abort/unwind point? Or maybe not so that valgrind can complain to the user about so-called "leaks" from them not having `dealloc()`'ed all their `alloc()`'s?
     * We should definitely call `VALGRIND_MEMPOOL_ALLOC()` on `alloc()` and `VALGRIND_MEMPOOL_FREE()` on `dealloc()`.
     * ... xyz0
-    
+
 * add support for the [new experimental Rust Allocator
   API](https://doc.rust-lang.org/nightly/std/alloc/trait.Allocator.html)
 
@@ -751,7 +752,7 @@ useful tool!
 * Thanks to Andrew Reece and Sam Smith from Shielded Labs for some specific suggestions that I
   implemented (see notes in documentation above). Thanks also to Andrew Reece for suggesting (at the
   Shielded Labs team meeting in San Diego) to use multiple slabs for all size classes in order to
-  reduce flh update conflicts. This suggestion forms a big part of smalloc v6 vs smalloc v5, which
+  reduce flh update conflicts. This suggestion forms a big part of smmalloc v6 vs smmalloc v5, which
   used multiple slabs for small size classes but not for larger ones.
 
 * Thanks to Jack O'Connor, Nate Wilcox, Sean Bowe, and Brian Warner for advice and
@@ -760,7 +761,7 @@ useful tool!
 * Thanks to Nate Wilcox for suggesting that I study the results of offensive security researchers on
   heap exploitation as a way to understand how memory managers work. :-)
 
-* Thanks to Kris Nuttycombe for suggesting the name "smalloc". :-)
+* Thanks to Kris Nuttycombe for suggesting the name "smmalloc". :-)
 
 * Thanks to Jason McGee--my boss at Shielded Labs--for being patient with me obsessively working on
   this when I could have been doing even more work for Shielded Labs instead.
@@ -773,9 +774,9 @@ useful tool!
   Scott](https://web.archive.org/web/20241122100644/https://www.cs.rochester.edu/research/synchronization/pseudocode/queues.html),
   and Leo (the Brave Web Browser AI) for extensive and mostly correct answers to stupid Rust
   questions. And Donald Knuth, who gave an interview to Dr Dobbs Journal that I read as a young man
-  and that still sticks with me. He said something to the effect that all algorithms *actually* run
+  and that still sticks with me. He said something to the effect that all algorithms _actually_ run
   with specific finite resources, and perhaps should be optimized for a specific target size rather
-  than for asymptotic complexity. I doubt he'll ever see `smalloc` or this note, but I'm really glad
+  than for asymptotic complexity. I doubt he'll ever see `smmalloc` or this note, but I'm really glad
   that he's still alive. :-)
 
 * Thanks to fluidvanadium for the first PR from a contributor. :-)
@@ -788,7 +789,7 @@ useful tool!
 
 # Historical notes about lines of code of older versions
 
-Smalloc v2 had the following lines counts (counted by tokei):
+Smmalloc v2 had the following lines counts (counted by tokei):
 
 * docs and comments: 1641
 * implementation loc: 779 (excluding debug_asserts)
@@ -796,7 +797,7 @@ Smalloc v2 had the following lines counts (counted by tokei):
 * benches loc: 507
 * tools loc: 223
 
-Smalloc v3 had the following lines counts:
+Smmalloc v3 had the following lines counts:
 
 * docs and comments: 2347
 * implementation loc: 867 (excluding debug_asserts)
@@ -804,19 +805,22 @@ Smalloc v3 had the following lines counts:
 * benches loc: 796
 * tools loc: 123
 
-Smalloc v4 has the following lines counts:
+Smmalloc v4 has the following lines counts:
+
 * docs and comments: 2217
 * implementaton loc: 401 (excluding debug_asserts)
 * tests loc: 977
 * benches loc: 0 -- benchmarks are broken 😭
 
-Smalloc v5 has the following lines counts:
+Smmalloc v5 has the following lines counts:
+
 * docs and comments: 2208
 * implementaton loc: 395 (excluding debug_asserts)
 * tests loc: 949
 * benches loc: 84 -- benchmarks are still mostly broken 😭
 
-Smalloc v6.0.4 has the following lines counts:
+Smmalloc v6.0.4 has the following lines counts:
+
 * docs and comments: 1198
 * implementaton loc: 455 (excluding debug_asserts)
 * tests loc: 618
@@ -829,9 +833,9 @@ each of them.)
 
 Licensed under any of:
 
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-* Transitive Grace Period Public License 1.0 ([LICENSE-TGPPL](LICENSE-TGPPL) or https://spdx.org/licenses/TGPPL-1.0.html)
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+* Transitive Grace Period Public License 1.0 ([LICENSE-TGPPL](LICENSE-TGPPL) or <https://spdx.org/licenses/TGPPL-1.0.html>)
 * Bootstrap Open Source License v1.0 ([LICENSE-BOSL.txt](LICENSE-BOSL.txt))
 
 at your option.

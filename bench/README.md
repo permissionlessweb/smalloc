@@ -2,8 +2,8 @@
 
 This is the one of the main measurements that I was optimizing for.
 
- * smalloc core: 286
- * smalloc core + smalloc-ffi: 634
+ * smmalloc core: 286
+ * smmalloc core + smmalloc-ffi: 634
  * rpmalloc: 2,509
  * glibc: 7,384
  * mimalloc: 9,949
@@ -14,9 +14,9 @@ To count lines of code in various memory allocators using my methodology (mostly
 debug asserts), run [count-locs.sh](count-locs.sh). See an example output in
 [results/count-locs.output.txt](results/count-locs.output.txt).
 
-# Smalloc's bench tool
+# Smmalloc's bench tool
 
-`smalloc` comes with a "micro-benchmarking" tool, used to measure `smalloc`'s performance at a low
+`smmalloc` comes with a "micro-benchmarking" tool, used to measure `smmalloc`'s performance at a low
 level, which can also compare to low-level measurements of other allocators. Build it with
 
 ```
@@ -35,7 +35,7 @@ There is an example output in [results/cargo-bench.output.txt](results/cargo-ben
 
 # Benchmarking user code with different allocators
 
-Here are some ways to benchmark smalloc to see the effect it has on performance of various
+Here are some ways to benchmark smmalloc to see the effect it has on performance of various
 codebases, and also to compare it to the default allocator, mimalloc, rpmalloc, snmalloc, and
 jemalloc.
 

@@ -3,8 +3,8 @@
 Apple M4 Max
 
 
-% ./critcmp.py default jemalloc snmalloc mimalloc rpmalloc smalloc
-test                                                                            default                jemalloc                snmalloc                mimalloc                rpmalloc                 smalloc
+% ./critcmp.py default jemalloc snmalloc mimalloc rpmalloc smmalloc
+test                                                                            default                jemalloc                snmalloc                mimalloc                rpmalloc                 smmalloc
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 apache_builds/simd_json::to_borrowed_value                            77.35 µs (  0.0%)       79.58 µs ( +2.9%)       79.20 µs ( +2.4%)       66.16 µs (-14.5%)       65.86 µs (-14.9%)       64.97 µs (-16.0%)
 apache_builds/simd_json::to_borrowed_value_with_buffers               75.64 µs (  0.0%)       78.14 µs ( +3.3%)       66.41 µs (-12.2%)       64.59 µs (-14.6%)       65.75 µs (-13.1%)       64.19 µs (-15.1%)

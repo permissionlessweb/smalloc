@@ -5,17 +5,17 @@
 // having a malloc_usable_size function, and refactoring the file to use macros to reduce
 // boilerplate per additional function.
 
-static SMALLOC: Smalloc = Smalloc::new();
+static SMALLOC: Smmalloc = Smmalloc::new();
 
 // =============================================================================
-// Helper: Check if pointer belongs to smalloc
+// Helper: Check if pointer belongs to smmalloc
 // =============================================================================
 
 // It looks like this proposed new update to C standards (https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3621.txt) requires this behavior. Programs that expect glibc behavior already depend on this being returned from malloc(0).
 
 enum PtrClass {
     NullOrSentinel,
-    Smalloc,
+    Smmalloc,
     Foreign,
 }
 
@@ -36,13 +36,13 @@ fn classify_ptr(ptr: *mut c_void) -> PtrClass {
         debug_assert!(sc < NUM_SCS);
         debug_assert!(p_addr.trailing_zeros() >= sc as u32);
 
-        PtrClass::Smalloc
+        PtrClass::Smmalloc
     } else {
         PtrClass::Foreign
     }
 }
 
-/// ptr is required to be a smalloc pointer -- not Null, Sentinel, or Foreign.
+/// ptr is required to be a smmalloc pointer -- not Null, Sentinel, or Foreign.
 #[inline(always)]
 fn ptr_to_sc(ptr: *mut c_void) -> u8 {
     debug_assert!(ptr.addr() >= SMALLOC.inner().smbp.load(Acquire) + LOWEST_SMALLOC_SLOT_ADDR && ptr.addr() <= SMALLOC.inner().smbp.load(Acquire) + HIGHEST_SMALLOC_SLOT_ADDR);
@@ -63,7 +63,7 @@ fn smalloc_inner_alloc(sc: u8) -> *mut c_void {
 }
 
 // =============================================================================
-// Core smalloc implementations
+// Core smmalloc implementations
 // =============================================================================
 
 /// # Safety
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn smalloc_malloc(size: usize) -> *mut c_void {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn smalloc_free(ptr: *mut c_void) {
     match classify_ptr(ptr) {
-        PtrClass::Smalloc => {
+        PtrClass::Smmalloc => {
             SMALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
@@ -112,7 +112,7 @@ pub unsafe extern "C" fn smalloc_free(ptr: *mut c_void) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn smalloc_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void {
     match classify_ptr(ptr) {
-        PtrClass::Smalloc => {
+        PtrClass::Smmalloc => {
             if unlikely(new_size == 0) {
                 unsafe { smalloc_free(ptr) };
                 return SIZE_0_ALLOC_SENTINEL;
@@ -170,12 +170,12 @@ pub unsafe extern "C" fn smalloc_realloc(ptr: *mut c_void, new_size: usize) -> *
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn smalloc_calloc(count: usize, size: usize) -> *mut c_void {
     if count >= 1 << (1 << NUM_SC_BITS) {
-        // smalloc can't allocate enough memory for that many things of any size.
+        // smmalloc can't allocate enough memory for that many things of any size.
         platform::set_errno(ENOMEM);
         return null_mut();
     }
     if size > 1 << DATA_ADDR_BITS_IN_HIGHEST_SC {
-        // smalloc can't allocate enough memory for even one thing of that size.
+        // smmalloc can't allocate enough memory for even one thing of that size.
         platform::set_errno(ENOMEM);
         return null_mut();
     }
@@ -200,15 +200,15 @@ pub unsafe extern "C" fn smalloc_calloc(count: usize, size: usize) -> *mut c_voi
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn smalloc_reallocarray(ptr: *mut c_void, nmemb: usize, size: usize) -> *mut c_void {
     match classify_ptr(ptr) {
-        PtrClass::NullOrSentinel | PtrClass::Smalloc => {
+        PtrClass::NullOrSentinel | PtrClass::Smmalloc => {
             if nmemb >= (1 << (1 << NUM_SC_BITS)) {
-                // smalloc can't allocate enough memory for that many things of any size.
+                // smmalloc can't allocate enough memory for that many things of any size.
                 // Set errno to ENOMEM and return NULL
                 platform::set_errno(ENOMEM);
                 return null_mut();
             }
             if size > 1 << DATA_ADDR_BITS_IN_HIGHEST_SC {
-                // smalloc can't allocate enough memory for even one thing of that size.
+                // smmalloc can't allocate enough memory for even one thing of that size.
                 // Set errno to ENOMEM and return NULL
                 platform::set_errno(ENOMEM);
                 return null_mut();
@@ -228,7 +228,7 @@ pub unsafe extern "C" fn smalloc_reallocarray(ptr: *mut c_void, nmemb: usize, si
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn smalloc_malloc_usable_size(ptr: *mut c_void) -> usize {
     match classify_ptr(ptr) {
-        PtrClass::Smalloc => {
+        PtrClass::Smmalloc => {
             let oldsc = ptr_to_sc(ptr);
             debug_assert!(oldsc >= NUM_UNUSED_SCS);
             debug_assert!(oldsc < NUM_SCS);
@@ -279,7 +279,7 @@ pub unsafe extern "C" fn smalloc_free_aligned_sized(ptr: *mut c_void, alignment:
     debug_assert!(alignment > 0);
 
     match classify_ptr(ptr) {
-        PtrClass::Smalloc => {
+        PtrClass::Smmalloc => {
             SMALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn smalloc_free_aligned_sized(ptr: *mut c_void, alignment:
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn smalloc_free_sized(ptr: *mut c_void, size: usize) {
     match classify_ptr(ptr) {
-        PtrClass::Smalloc => {
+        PtrClass::Smmalloc => {
             SMALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
@@ -421,7 +421,7 @@ mod platform {
     }
 
     // macOS System library doesn't implement free_aligned_sized, free_sized, or reallocarray, so
-    // those functions should never get called and passed a pointer that is not a smalloc pointer.
+    // those functions should never get called and passed a pointer that is not a smmalloc pointer.
     pub fn call_prev_free_aligned_sized(_ptr: *mut c_void, _alignment: usize, _size: usize) {
         panic!("call to memory management function that isn't supported by the macOS System library");
     }
@@ -461,6 +461,6 @@ use std::sync::atomic::Ordering::Acquire;
 use core::ffi::c_void;
 use std::hint::{likely, unlikely};
 use std::ptr::{null_mut, copy_nonoverlapping};
-use smalloc::i::*;
-use smalloc::Smalloc;
+use smmalloc::i::*;
+use smmalloc::Smmalloc;
 
