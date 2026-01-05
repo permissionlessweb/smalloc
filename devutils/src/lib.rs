@@ -19,12 +19,12 @@ use std::alloc::Layout;
 // For testing and benchmarking only.
 pub mod dev_instance {
     use smmalloc::*;
-    pub static mut DEV_SMALLOC: Smmalloc = Smmalloc::new();
+    pub static mut DEV_SMMALLOC: Smmalloc = Smmalloc::new();
 
     #[macro_export]
     macro_rules! get_devsmalloc {
         () => {
-            unsafe { &*std::ptr::addr_of!($crate::dev_instance::DEV_SMALLOC) }
+            unsafe { &*std::ptr::addr_of!($crate::dev_instance::DEV_SMMALLOC) }
         };
     }
 }

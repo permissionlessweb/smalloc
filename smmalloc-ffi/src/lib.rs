@@ -5,7 +5,7 @@
 // having a malloc_usable_size function, and refactoring the file to use macros to reduce
 // boilerplate per additional function.
 
-static SMALLOC: Smmalloc = Smmalloc::new();
+static SMMALLOC: Smmalloc = Smmalloc::new();
 
 // =============================================================================
 // Helper: Check if pointer belongs to smmalloc
@@ -26,7 +26,7 @@ fn classify_ptr(ptr: *mut c_void) -> PtrClass {
     }
 
     let p_addr = ptr.addr();
-    let smbp = SMALLOC.inner().smbp.load(Acquire);//xxx could use Relaxed instead?
+    let smbp = SMMALLOC.inner().smbp.load(Acquire);//xxx could use Relaxed instead?
     debug_assert!(smbp != 0);
 
     if likely(p_addr >= smbp + LOWEST_SMALLOC_SLOT_ADDR && p_addr <= smbp + HIGHEST_SMALLOC_SLOT_ADDR) {
@@ -45,7 +45,7 @@ fn classify_ptr(ptr: *mut c_void) -> PtrClass {
 /// ptr is required to be a smmalloc pointer -- not Null, Sentinel, or Foreign.
 #[inline(always)]
 fn ptr_to_sc(ptr: *mut c_void) -> u8 {
-    debug_assert!(ptr.addr() >= SMALLOC.inner().smbp.load(Acquire) + LOWEST_SMALLOC_SLOT_ADDR && ptr.addr() <= SMALLOC.inner().smbp.load(Acquire) + HIGHEST_SMALLOC_SLOT_ADDR);
+    debug_assert!(ptr.addr() >= SMMALLOC.inner().smbp.load(Acquire) + LOWEST_SMALLOC_SLOT_ADDR && ptr.addr() <= SMMALLOC.inner().smbp.load(Acquire) + HIGHEST_SMALLOC_SLOT_ADDR);
 
     let sc = ((ptr.addr() & SC_BITS_ADDR_MASK) >> NUM_SLOTNUM_AND_DATA_BITS) as u8;
 
@@ -58,8 +58,8 @@ fn ptr_to_sc(ptr: *mut c_void) -> u8 {
 
 #[inline(always)]
 fn smalloc_inner_alloc(sc: u8) -> *mut c_void {
-    SMALLOC.idempotent_init();
-    SMALLOC.inner_alloc(sc) as *mut c_void
+    SMMALLOC.idempotent_init();
+    SMMALLOC.inner_alloc(sc) as *mut c_void
 }
 
 // =============================================================================
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn smalloc_malloc(size: usize) -> *mut c_void {
 pub unsafe extern "C" fn smalloc_free(ptr: *mut c_void) {
     match classify_ptr(ptr) {
         PtrClass::Smmalloc => {
-            SMALLOC.inner_dealloc(ptr.addr());
+            SMMALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
             platform::call_prev_free(ptr);
@@ -147,7 +147,7 @@ pub unsafe extern "C" fn smalloc_realloc(ptr: *mut c_void, new_size: usize) -> *
             if likely(!newp.is_null()) {
                 let oldsize = 1 << oldsc;
                 unsafe { copy_nonoverlapping(ptr, newp, oldsize) };
-                SMALLOC.inner_dealloc(ptr.addr());
+                SMMALLOC.inner_dealloc(ptr.addr());
             } else {
                 // if this is NULL then we're just going to return NULL
                 platform::set_errno(ENOMEM);
@@ -280,7 +280,7 @@ pub unsafe extern "C" fn smalloc_free_aligned_sized(ptr: *mut c_void, alignment:
 
     match classify_ptr(ptr) {
         PtrClass::Smmalloc => {
-            SMALLOC.inner_dealloc(ptr.addr());
+            SMMALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
             platform::call_prev_free_aligned_sized(ptr, alignment, size);
@@ -297,7 +297,7 @@ pub unsafe extern "C" fn smalloc_free_aligned_sized(ptr: *mut c_void, alignment:
 pub unsafe extern "C" fn smalloc_free_sized(ptr: *mut c_void, size: usize) {
     match classify_ptr(ptr) {
         PtrClass::Smmalloc => {
-            SMALLOC.inner_dealloc(ptr.addr());
+            SMMALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
             platform::call_prev_free_sized(ptr, size);
