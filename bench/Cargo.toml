@@ -16,13 +16,19 @@ tikv-jemallocator = { version = "0.6", optional = true }
 snmalloc-rs = { version = "0.3", optional = true }
 rpmalloc = { version = "0.2", optional = true }
 
+[target.'cfg(target_os="windows")'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Performance"] }
+
+[target.'cfg(not(target_os="windows"))'.dependencies]
+libc = "0.2"
+
 [[bin]]
 name = "bench"
 
 [features]
 
 # For benchmarking other allocators:
+mimalloc = ["dep:mimalloc"] 
 jemalloc = ["dep:tikv-jemallocator"]
-mimalloc = ["dep:mimalloc"]
 snmalloc = ["dep:snmalloc-rs"]
 rpmalloc = ["dep:rpmalloc"]
