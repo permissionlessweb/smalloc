@@ -32,7 +32,7 @@ Run it with
 You can optionally add the `--thorough` flag for benchmarking more "edge cases" and doing more
 iterations to try to get more statistically reliable results.
 
-You can also optionally add the `--compare` flag to compare smalloc's performance against the
+You can also optionally add the `--compare` flag to compare smmalloc's performance against the
 default allocator and -- if they have been built into `bench` -- `mimalloc`, `rpmalloc`, `snmalloc`,
 and `jemalloc`.
 
