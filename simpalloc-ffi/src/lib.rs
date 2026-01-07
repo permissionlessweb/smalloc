@@ -5,17 +5,17 @@
 // having a malloc_usable_size function, and refactoring the file to use macros to reduce
 // boilerplate per additional function.
 
-static SMMALLOC: Smmalloc = Smmalloc::new();
+static SIMPALLOC: Simpalloc = Simpalloc::new();
 
 // =============================================================================
-// Helper: Check if pointer belongs to smmalloc
+// Helper: Check if pointer belongs to simpalloc
 // =============================================================================
 
 // It looks like this proposed new update to C standards (https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3621.txt) requires this behavior. Programs that expect glibc behavior already depend on this being returned from malloc(0).
 
 enum PtrClass {
     NullOrSentinel,
-    Smmalloc,
+    Simpalloc,
     Foreign,
 }
 
@@ -26,26 +26,26 @@ fn classify_ptr(ptr: *mut c_void) -> PtrClass {
     }
 
     let p_addr = ptr.addr();
-    let smbp = SMMALLOC.inner().smbp.load(Acquire);//xxx could use Relaxed instead?
+    let smbp = SIMPALLOC.inner().smbp.load(Acquire);//xxx could use Relaxed instead?
     debug_assert!(smbp != 0);
 
-    if likely(p_addr >= smbp + LOWEST_SMMALLOC_SLOT_ADDR && p_addr <= smbp + HIGHEST_SMMALLOC_SLOT_ADDR) {
+    if likely(p_addr >= smbp + LOWEST_SIMPALLOC_SLOT_ADDR && p_addr <= smbp + HIGHEST_SIMPALLOC_SLOT_ADDR) {
         let sc = ((p_addr & SC_BITS_ADDR_MASK) >> NUM_SLOTNUM_AND_DATA_BITS) as u8;
 
         debug_assert!(sc >= NUM_UNUSED_SCS);
         debug_assert!(sc < NUM_SCS);
         debug_assert!(p_addr.trailing_zeros() >= sc as u32);
 
-        PtrClass::Smmalloc
+        PtrClass::Simpalloc
     } else {
         PtrClass::Foreign
     }
 }
 
-/// ptr is required to be a smmalloc pointer -- not Null, Sentinel, or Foreign.
+/// ptr is required to be a simpalloc pointer -- not Null, Sentinel, or Foreign.
 #[inline(always)]
 fn ptr_to_sc(ptr: *mut c_void) -> u8 {
-    debug_assert!(ptr.addr() >= SMMALLOC.inner().smbp.load(Acquire) + LOWEST_SMMALLOC_SLOT_ADDR && ptr.addr() <= SMMALLOC.inner().smbp.load(Acquire) + HIGHEST_SMMALLOC_SLOT_ADDR);
+    debug_assert!(ptr.addr() >= SIMPALLOC.inner().smbp.load(Acquire) + LOWEST_SIMPALLOC_SLOT_ADDR && ptr.addr() <= SIMPALLOC.inner().smbp.load(Acquire) + HIGHEST_SIMPALLOC_SLOT_ADDR);
 
     let sc = ((ptr.addr() & SC_BITS_ADDR_MASK) >> NUM_SLOTNUM_AND_DATA_BITS) as u8;
 
@@ -57,20 +57,20 @@ fn ptr_to_sc(ptr: *mut c_void) -> u8 {
 }
 
 #[inline(always)]
-fn smmalloc_inner_alloc(sc: u8) -> *mut c_void {
-    SMMALLOC.idempotent_init();
-    SMMALLOC.inner_alloc(sc) as *mut c_void
+fn simpalloc_inner_alloc(sc: u8) -> *mut c_void {
+    SIMPALLOC.idempotent_init();
+    SIMPALLOC.inner_alloc(sc) as *mut c_void
 }
 
 // =============================================================================
-// Core smmalloc implementations
+// Core simpalloc implementations
 // =============================================================================
 
 /// # Safety
 ///
 /// This has the same safety requirements as any implementation of `malloc`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_malloc(size: usize) -> *mut c_void {
+pub unsafe extern "C" fn simpalloc_malloc(size: usize) -> *mut c_void {
     if unlikely(size == 0) {
         return SIZE_0_ALLOC_SENTINEL;
     }
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn smmalloc_malloc(size: usize) -> *mut c_void {
         return null_mut();
     }
 
-    let ptr = smmalloc_inner_alloc(sc);
+    let ptr = simpalloc_inner_alloc(sc);
     if unlikely(ptr.is_null()) {
         platform::set_errno(ENOMEM);
     }
@@ -93,10 +93,10 @@ pub unsafe extern "C" fn smmalloc_malloc(size: usize) -> *mut c_void {
 ///
 /// This has the same safety requirements as any implementation of `free`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_free(ptr: *mut c_void) {
+pub unsafe extern "C" fn simpalloc_free(ptr: *mut c_void) {
     match classify_ptr(ptr) {
-        PtrClass::Smmalloc => {
-            SMMALLOC.inner_dealloc(ptr.addr());
+        PtrClass::Simpalloc => {
+            SIMPALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
             platform::call_prev_free(ptr);
@@ -110,11 +110,11 @@ pub unsafe extern "C" fn smmalloc_free(ptr: *mut c_void) {
 ///
 /// This has the same safety requirements as any implementation of `realloc`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void {
+pub unsafe extern "C" fn simpalloc_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void {
     match classify_ptr(ptr) {
-        PtrClass::Smmalloc => {
+        PtrClass::Simpalloc => {
             if unlikely(new_size == 0) {
-                unsafe { smmalloc_free(ptr) };
+                unsafe { simpalloc_free(ptr) };
                 return SIZE_0_ALLOC_SENTINEL;
             }
 
@@ -142,12 +142,12 @@ pub unsafe extern "C" fn smmalloc_realloc(ptr: *mut c_void, new_size: usize) -> 
                 if reqsc <= 21 { 21 }
             else { reqsc };
 
-            let newp = smmalloc_inner_alloc(reqsc);
+            let newp = simpalloc_inner_alloc(reqsc);
 
             if likely(!newp.is_null()) {
                 let oldsize = 1 << oldsc;
                 unsafe { copy_nonoverlapping(ptr, newp, oldsize) };
-                SMMALLOC.inner_dealloc(ptr.addr());
+                SIMPALLOC.inner_dealloc(ptr.addr());
             } else {
                 // if this is NULL then we're just going to return NULL
                 platform::set_errno(ENOMEM);
@@ -159,7 +159,7 @@ pub unsafe extern "C" fn smmalloc_realloc(ptr: *mut c_void, new_size: usize) -> 
             platform::call_prev_realloc(ptr, new_size)
         }
         PtrClass::NullOrSentinel => {
-            unsafe { smmalloc_malloc(new_size) }
+            unsafe { simpalloc_malloc(new_size) }
         }
     }
 }
@@ -168,27 +168,27 @@ pub unsafe extern "C" fn smmalloc_realloc(ptr: *mut c_void, new_size: usize) -> 
 ///
 /// This has the same safety requirements as any implementation of `calloc`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_calloc(count: usize, size: usize) -> *mut c_void {
+pub unsafe extern "C" fn simpalloc_calloc(count: usize, size: usize) -> *mut c_void {
     if count >= 1 << (1 << NUM_SC_BITS) {
-        // smmalloc can't allocate enough memory for that many things of any size.
+        // simpalloc can't allocate enough memory for that many things of any size.
         platform::set_errno(ENOMEM);
         return null_mut();
     }
     if size > 1 << DATA_ADDR_BITS_IN_HIGHEST_SC {
-        // smmalloc can't allocate enough memory for even one thing of that size.
+        // simpalloc can't allocate enough memory for even one thing of that size.
         platform::set_errno(ENOMEM);
         return null_mut();
     }
 
     let total = ((count as u32 as u64) * (size as u32 as u64)) as usize;
 
-    let ptr = unsafe { smmalloc_malloc(total) };
+    let ptr = unsafe { simpalloc_malloc(total) };
 
     if likely(!ptr.is_null() && ptr != SIZE_0_ALLOC_SENTINEL) {
         unsafe { std::ptr::write_bytes(ptr, 0, total) };
     }
 
-    // If this is NULL or Sentinel then we just return it. smmalloc_malloc() will have already set
+    // If this is NULL or Sentinel then we just return it. simpalloc_malloc() will have already set
     // ENOMEM if it should have.
 
     ptr
@@ -198,23 +198,23 @@ pub unsafe extern "C" fn smmalloc_calloc(count: usize, size: usize) -> *mut c_vo
 ///
 /// This has the same safety requirements as any implementation of `reallocarray`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_reallocarray(ptr: *mut c_void, nmemb: usize, size: usize) -> *mut c_void {
+pub unsafe extern "C" fn simpalloc_reallocarray(ptr: *mut c_void, nmemb: usize, size: usize) -> *mut c_void {
     match classify_ptr(ptr) {
-        PtrClass::NullOrSentinel | PtrClass::Smmalloc => {
+        PtrClass::NullOrSentinel | PtrClass::Simpalloc => {
             if nmemb >= (1 << (1 << NUM_SC_BITS)) {
-                // smmalloc can't allocate enough memory for that many things of any size.
+                // simpalloc can't allocate enough memory for that many things of any size.
                 // Set errno to ENOMEM and return NULL
                 platform::set_errno(ENOMEM);
                 return null_mut();
             }
             if size > 1 << DATA_ADDR_BITS_IN_HIGHEST_SC {
-                // smmalloc can't allocate enough memory for even one thing of that size.
+                // simpalloc can't allocate enough memory for even one thing of that size.
                 // Set errno to ENOMEM and return NULL
                 platform::set_errno(ENOMEM);
                 return null_mut();
             }
             let total = ((nmemb as u32 as u64) * (size as u32 as u64)) as usize;
-            unsafe { smmalloc_realloc(ptr, total) }
+            unsafe { simpalloc_realloc(ptr, total) }
         }
         PtrClass::Foreign => {
             platform::call_prev_reallocarray(ptr, nmemb, size)
@@ -226,9 +226,9 @@ pub unsafe extern "C" fn smmalloc_reallocarray(ptr: *mut c_void, nmemb: usize, s
 ///
 /// This has the same safety requirements as any implementation of `malloc_usable_size`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_malloc_usable_size(ptr: *mut c_void) -> usize {
+pub unsafe extern "C" fn simpalloc_malloc_usable_size(ptr: *mut c_void) -> usize {
     match classify_ptr(ptr) {
-        PtrClass::Smmalloc => {
+        PtrClass::Simpalloc => {
             let oldsc = ptr_to_sc(ptr);
             debug_assert!(oldsc >= NUM_UNUSED_SCS);
             debug_assert!(oldsc < NUM_SCS);
@@ -247,7 +247,7 @@ pub unsafe extern "C" fn smmalloc_malloc_usable_size(ptr: *mut c_void) -> usize 
 ///
 /// This has the same safety requirements as any implementation of `aligned_alloc`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_aligned_alloc(alignment: usize, size: usize) -> *mut c_void {
+pub unsafe extern "C" fn simpalloc_aligned_alloc(alignment: usize, size: usize) -> *mut c_void {
     debug_assert!(alignment > 0);
 
     if unlikely(size == 0) {
@@ -263,7 +263,7 @@ pub unsafe extern "C" fn smmalloc_aligned_alloc(alignment: usize, size: usize) -
         return null_mut();
     }
 
-    let ptr = smmalloc_inner_alloc(sc);
+    let ptr = simpalloc_inner_alloc(sc);
     if unlikely(ptr.is_null()) {
         platform::set_errno(ENOMEM);
     }
@@ -275,12 +275,12 @@ pub unsafe extern "C" fn smmalloc_aligned_alloc(alignment: usize, size: usize) -
 ///
 /// This has the same safety requirements as any implementation of `free_aligned_sized`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_free_aligned_sized(ptr: *mut c_void, alignment: usize, size: usize) {
+pub unsafe extern "C" fn simpalloc_free_aligned_sized(ptr: *mut c_void, alignment: usize, size: usize) {
     debug_assert!(alignment > 0);
 
     match classify_ptr(ptr) {
-        PtrClass::Smmalloc => {
-            SMMALLOC.inner_dealloc(ptr.addr());
+        PtrClass::Simpalloc => {
+            SIMPALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
             platform::call_prev_free_aligned_sized(ptr, alignment, size);
@@ -294,10 +294,10 @@ pub unsafe extern "C" fn smmalloc_free_aligned_sized(ptr: *mut c_void, alignment
 ///
 /// This has the same safety requirements as any implementation of `free_sized`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn smmalloc_free_sized(ptr: *mut c_void, size: usize) {
+pub unsafe extern "C" fn simpalloc_free_sized(ptr: *mut c_void, size: usize) {
     match classify_ptr(ptr) {
-        PtrClass::Smmalloc => {
-            SMMALLOC.inner_dealloc(ptr.addr());
+        PtrClass::Simpalloc => {
+            SIMPALLOC.inner_dealloc(ptr.addr());
         }
         PtrClass::Foreign => {
             platform::call_prev_free_sized(ptr, size);
@@ -371,15 +371,15 @@ mod platform {
         };
     }
 
-    export_interpose!(malloc => super::smmalloc_malloc, fn(size: usize) -> *mut c_void);
-    export_interpose!(free => super::smmalloc_free, fn(ptr: *mut c_void));
-    export_interpose!(realloc => super::smmalloc_realloc, fn(ptr: *mut c_void, new_size: usize) -> *mut c_void);
-    export_interpose!(malloc_usable_size => super::smmalloc_malloc_usable_size, fn(ptr: *mut c_void) -> usize);
-    export_interpose!(calloc => super::smmalloc_calloc, fn(count: usize, size: usize) -> *mut c_void);
-    export_interpose!(reallocarray => super::smmalloc_reallocarray, fn(ptr: *mut c_void, nmemb: usize, size: usize) -> *mut c_void);
-    export_interpose!(aligned_alloc => super::smmalloc_aligned_alloc, fn(alignment: usize, size: usize) -> *mut c_void);
-    export_interpose!(free_aligned_sized => super::smmalloc_free_aligned_sized, fn(ptr: *mut c_void, alignment: usize, size: usize));
-    export_interpose!(free_sized => super::smmalloc_free_sized, fn(ptr: *mut c_void, size: usize));
+    export_interpose!(malloc => super::simpalloc_malloc, fn(size: usize) -> *mut c_void);
+    export_interpose!(free => super::simpalloc_free, fn(ptr: *mut c_void));
+    export_interpose!(realloc => super::simpalloc_realloc, fn(ptr: *mut c_void, new_size: usize) -> *mut c_void);
+    export_interpose!(malloc_usable_size => super::simpalloc_malloc_usable_size, fn(ptr: *mut c_void) -> usize);
+    export_interpose!(calloc => super::simpalloc_calloc, fn(count: usize, size: usize) -> *mut c_void);
+    export_interpose!(reallocarray => super::simpalloc_reallocarray, fn(ptr: *mut c_void, nmemb: usize, size: usize) -> *mut c_void);
+    export_interpose!(aligned_alloc => super::simpalloc_aligned_alloc, fn(alignment: usize, size: usize) -> *mut c_void);
+    export_interpose!(free_aligned_sized => super::simpalloc_free_aligned_sized, fn(ptr: *mut c_void, alignment: usize, size: usize));
+    export_interpose!(free_sized => super::simpalloc_free_sized, fn(ptr: *mut c_void, size: usize));
 }
 
 // =============================================================================
@@ -421,7 +421,7 @@ mod platform {
     }
 
     // macOS System library doesn't implement free_aligned_sized, free_sized, or reallocarray, so
-    // those functions should never get called and passed a pointer that is not a smmalloc pointer.
+    // those functions should never get called and passed a pointer that is not a simpalloc pointer.
     pub fn call_prev_free_aligned_sized(_ptr: *mut c_void, _alignment: usize, _size: usize) {
         panic!("call to memory management function that isn't supported by the macOS System library");
     }
@@ -461,6 +461,6 @@ use std::sync::atomic::Ordering::Acquire;
 use core::ffi::c_void;
 use std::hint::{likely, unlikely};
 use std::ptr::{null_mut, copy_nonoverlapping};
-use smmalloc::i::*;
-use smmalloc::Smmalloc;
+use simpalloc::i::*;
+use simpalloc::Simpalloc;
 

@@ -1,8 +1,8 @@
 [package]
-name = "hellosmmalloc"
+name = "hellosimpalloc"
 version.workspace = true
 edition.workspace = true
 publish = false
 
 [dependencies]
-smmalloc = { path = "../smmalloc", package = "smmalloc" }
+simpalloc = { path = "../simpalloc", package = "simpalloc" }

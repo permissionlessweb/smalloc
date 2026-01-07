@@ -2,28 +2,28 @@
 
 This is the one of the main measurements that I was optimizing for.
 
- * smmalloc core: 286
- * smmalloc core + smmalloc-ffi: 634
- * rpmalloc: 2,509
- * glibc: 7,384
- * mimalloc: 9,949
- * snmalloc: 12,728
- * jemalloc: 25,713
+* simpalloc core: 286
+* simpalloc core + simpalloc-ffi: 634
+* rpmalloc: 2,509
+* glibc: 7,384
+* mimalloc: 9,949
+* snmalloc: 12,728
+* jemalloc: 25,713
 
 To count lines of code in various memory allocators using my methodology (mostly just excluding
 debug asserts), run [count-locs.sh](count-locs.sh). See an example output in
 [results/count-locs.output.txt](results/count-locs.output.txt).
 
-# Smmalloc's bench tool
+# Simpalloc's bench tool
 
-`smmalloc` comes with a "micro-benchmarking" tool, used to measure `smmalloc`'s performance at a low
+`simpalloc` comes with a "micro-benchmarking" tool, used to measure `simpalloc`'s performance at a low
 level, which can also compare to low-level measurements of other allocators. Build it with
 
 ```
 cargo build --release --package bench
 ```
 
-Run it with 
+Run it with
 
 ```
 ./target/release/bench
@@ -32,7 +32,7 @@ Run it with
 You can optionally add the `--thorough` flag for benchmarking more "edge cases" and doing more
 iterations to try to get more statistically reliable results.
 
-You can also optionally add the `--compare` flag to compare smmalloc's performance against the
+You can also optionally add the `--compare` flag to compare simpalloc's performance against the
 default allocator and -- if they have been built into `bench` -- `mimalloc`, `rpmalloc`, `snmalloc`,
 and `jemalloc`.
 
@@ -43,25 +43,25 @@ There is an example output in [results/cargo-bench.output.txt](results/cargo-ben
 
 # Benchmarking user code with different allocators
 
-Here are some ways to benchmark smmalloc to see the effect it has on performance of various
+Here are some ways to benchmark simpalloc to see the effect it has on performance of various
 codebases, and also to compare it to the default allocator, mimalloc, rpmalloc, snmalloc, and
 jemalloc.
 
 ## Rust simd-json
 
-Get this fork of the Rust simd-json repo: https://github.com/zooko/simd-json and run the
+Get this fork of the Rust simd-json repo: <https://github.com/zooko/simd-json> and run the
 [bench-allocators.sh](https://github.com/zooko/simd-json/blob/26a671f60228123cb5b6dd1a8da136dff6523244/bench-allocators.sh)
 script. [Example output](results/simd-json.output.txt).
 
 ## Rust rebar
 
-Get this fork of the Rust rebar repo: https://github.com/zooko/rebar and run the
+Get this fork of the Rust rebar repo: <https://github.com/zooko/rebar> and run the
 [bench-allocators.sh](https://github.com/zooko/rebar/blob/7c3b699226a4170d8d817f83a4711d8e3bed4fe9/bench-allocators.sh)
 script. [Example output](results/simd-json.output.txt).
 
 ## mimalloc-bench
 
-Get this fork of the mimalloc-bench repo: https://github.com/zooko/mimalloc-bench and run the
+Get this fork of the mimalloc-bench repo: <https://github.com/zooko/mimalloc-bench> and run the
 [bench-allocators.sh](https://github.com/zooko/mimalloc-bench/blob/10fe6ba9546be3fb97bd5b71990bb1dc34b58f8a/bench-allocators.sh)
 script. (Only works on Linux.) [Example output](results/mimalloc-bench.output.txt)
 

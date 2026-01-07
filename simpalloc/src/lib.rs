@@ -15,13 +15,13 @@
 
 // --- Public structs and methods ---
 
-pub struct Smmalloc {
-    inner: UnsafeCell<SmmallocInner>,
+pub struct Simpalloc {
+    inner: UnsafeCell<SimpallocInner>,
 }
 
-impl Smmalloc {
+impl Simpalloc {
     pub const fn new() -> Self { Self {
-        inner: UnsafeCell::new(SmmallocInner {
+        inner: UnsafeCell::new(SimpallocInner {
             smbp: AtomicUsize::new(0),
             initlock: AtomicBool::new(false),
         }),
@@ -64,7 +64,7 @@ impl Smmalloc {
     }
 }
 
-unsafe impl GlobalAlloc for Smmalloc {
+unsafe impl GlobalAlloc for Simpalloc {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let reqsiz = layout.size();
@@ -99,13 +99,13 @@ unsafe impl GlobalAlloc for Smmalloc {
         let p_addr = ptr.addr();
         let smbp = self.inner().smbp.load(Relaxed);
 
-        // To be valid, the pointer has to be greater than or equal to the smmalloc base pointer and
+        // To be valid, the pointer has to be greater than or equal to the simpalloc base pointer and
         // less than or equal to the highest slot pointer.
 
         assert!(p_addr >= smbp);
-        assert!(p_addr - smbp >= LOWEST_SMMALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SMMALLOC_SLOT_ADDR);
+        assert!(p_addr - smbp >= LOWEST_SIMPALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SIMPALLOC_SLOT_ADDR);
 
-        // Okay now we know that it is a pointer into smmalloc's region.
+        // Okay now we know that it is a pointer into simpalloc's region.
 
         let oldsize = layout.size();
         debug_assert!(oldsize > 0);
@@ -144,7 +144,7 @@ unsafe impl GlobalAlloc for Smmalloc {
 
             let newp = self.inner_alloc(reqsc);
             if unlikely(newp.is_null()) {
-                // smmalloc slots must be exhausted
+                // simpalloc slots must be exhausted
                 return newp;
             }
 
@@ -167,12 +167,12 @@ macro_rules! gen_mask { ($bits:expr, $ty:ty) => { ((!0 as $ty) >> (<$ty>::BITS -
 
 #[doc(hidden)]
 pub mod i {
-    // Everything in this `i` ("internal") module is for the use of the smmalloc core lib (this file)
-    // and for the use of the smmalloc-ffi package.
+    // Everything in this `i` ("internal") module is for the use of the simpalloc core lib (this file)
+    // and for the use of the simpalloc-ffi package.
 
     // --- Fixed constants chosen for the design ---
 
-    // NUM_SC_BITS is the main constant determining the rest of smmalloc's layout. It is equal to 5
+    // NUM_SC_BITS is the main constant determining the rest of simpalloc's layout. It is equal to 5
     // because that means there are 32 size classes, and the first one (that is used -- see below)
     // has 2^32 slots. This is the largest number of slots that we can encode their slot numbers
     // into a 4-byte slot, which means that our smallest slots can be 4 bytes and we can pack more
@@ -218,27 +218,27 @@ pub mod i {
 
     pub const DATA_ADDR_BITS_IN_HIGHEST_SC: u8 = NUM_SCS - 1; // 31
 
-    // The smmalloc address of the slot with the lowest address is:
-    pub const LOWEST_SMMALLOC_SLOT_ADDR: usize = (NUM_UNUSED_SCS as usize) << NUM_SLOTNUM_AND_DATA_BITS; // 0b100000000000000000000000000000000000
+    // The simpalloc address of the slot with the lowest address is:
+    pub const LOWEST_SIMPALLOC_SLOT_ADDR: usize = (NUM_UNUSED_SCS as usize) << NUM_SLOTNUM_AND_DATA_BITS; // 0b100000000000000000000000000000000000
 
-    // The smmalloc address of the slot with the highest address is:
-    pub const HIGHEST_SMMALLOC_SLOT_ADDR: usize = SLABNUM_BITS_ADDR_MASK | SC_BITS_ADDR_MASK | (HIGHEST_SLOTNUM_IN_HIGHEST_SC as usize) << DATA_ADDR_BITS_IN_HIGHEST_SC; // 0b11111111111100000000000000000000000000000000
+    // The simpalloc address of the slot with the highest address is:
+    pub const HIGHEST_SIMPALLOC_SLOT_ADDR: usize = SLABNUM_BITS_ADDR_MASK | SC_BITS_ADDR_MASK | (HIGHEST_SLOTNUM_IN_HIGHEST_SC as usize) << DATA_ADDR_BITS_IN_HIGHEST_SC; // 0b11111111111100000000000000000000000000000000
 
-    pub struct SmmallocInner {
+    pub struct SimpallocInner {
         pub smbp: AtomicUsize,
         pub initlock: AtomicBool
     }
 
-    impl Smmalloc {
+    impl Simpalloc {
         #[inline(always)]
         pub fn inner_dealloc(&self, p_addr: usize) {
-            // To be valid, the pointer has to be greater than or equal to the smmalloc base pointer and
+            // To be valid, the pointer has to be greater than or equal to the simpalloc base pointer and
             // less than or equal to the highest slot pointer.
             let smbp = self.inner().smbp.load(Relaxed);
             debug_assert!(p_addr >= smbp);
-            debug_assert!(p_addr - smbp >= LOWEST_SMMALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SMMALLOC_SLOT_ADDR);
+            debug_assert!(p_addr - smbp >= LOWEST_SIMPALLOC_SLOT_ADDR && p_addr - smbp <= HIGHEST_SIMPALLOC_SLOT_ADDR);
 
-            // Okay now we know that it is a pointer into smmalloc's region.
+            // Okay now we know that it is a pointer into simpalloc's region.
 
             // The sizeclass is encoded into the most-significant bits of the address:
             let sc = ((p_addr & SC_BITS_ADDR_MASK) >> NUM_SLOTNUM_AND_DATA_BITS) as u8;
@@ -330,7 +330,7 @@ pub mod i {
                     // changed) below will fail, so the invalid bits will not get stored.
                     let curfirstentry_p = smbp | (slabnum_and_sc << NUM_SLOTNUM_AND_DATA_BITS) | (curfirstentryslotnum as usize) << sc;
 
-                    debug_assert!((curfirstentry_p - smbp >= LOWEST_SMMALLOC_SLOT_ADDR) && (curfirstentry_p - smbp <= HIGHEST_SMMALLOC_SLOT_ADDR));
+                    debug_assert!((curfirstentry_p - smbp >= LOWEST_SIMPALLOC_SLOT_ADDR) && (curfirstentry_p - smbp <= HIGHEST_SIMPALLOC_SLOT_ADDR));
 
                     #[cfg(any(target_os = "windows", doc))]
                     sys_commit(curfirstentry_p as *mut u8, 4).unwrap();
@@ -388,7 +388,7 @@ pub mod i {
                                 // slab in it, plus we've tried all other slabs at least once, and
                                 // each one was either full or we encountered (and lost) an flh
                                 // collision while trying to pop from it.
-                                eprintln!("smmalloc exhausted");
+                                eprintln!("simpalloc exhausted");
                                 break null_mut();
                             };
 
@@ -401,7 +401,7 @@ pub mod i {
         }
 
         #[inline(always)]
-        pub fn inner(&self) -> &SmmallocInner {
+        pub fn inner(&self) -> &SimpallocInner {
             unsafe { &*self.inner.get() }
         }
 
@@ -448,14 +448,14 @@ const FLHWORD_SLOTNUM_MASK: u64 = gen_mask!(32, u64);
 
 // ---- Constants for calculating the total virtual address space to reserve ----
 
-// The smmalloc address of the highest-addressed byte of a smmalloc slot is:
-const HIGHEST_SMMALLOC_SLOT_BYTE_ADDR: usize = HIGHEST_SMMALLOC_SLOT_ADDR | gen_mask!(DATA_ADDR_BITS_IN_HIGHEST_SC, usize); // 0b111111111111101111111111111111111111111111111
+// The simpalloc address of the highest-addressed byte of a simpalloc slot is:
+const HIGHEST_SIMPALLOC_SLOT_BYTE_ADDR: usize = HIGHEST_SIMPALLOC_SLOT_ADDR | gen_mask!(DATA_ADDR_BITS_IN_HIGHEST_SC, usize); // 0b111111111111101111111111111111111111111111111
 
-// We need to allocate extra bytes so that we can align the smmalloc base pointer so that all of the
-// trailing bits of the smmalloc base pointer are zeros.
+// We need to allocate extra bytes so that we can align the simpalloc base pointer so that all of the
+// trailing bits of the simpalloc base pointer are zeros.
 
-const BASEPTR_ALIGN: usize = (HIGHEST_SMMALLOC_SLOT_BYTE_ADDR + 1).next_power_of_two(); // 0b1000000000000000000000000000000000000000000000
-const TOTAL_VIRTUAL_MEMORY: usize = HIGHEST_SMMALLOC_SLOT_BYTE_ADDR + BASEPTR_ALIGN - 1; // 0b1111111111111101111111111111111111111111111110 == 70_366_596_694_014
+const BASEPTR_ALIGN: usize = (HIGHEST_SIMPALLOC_SLOT_BYTE_ADDR + 1).next_power_of_two(); // 0b1000000000000000000000000000000000000000000000
+const TOTAL_VIRTUAL_MEMORY: usize = HIGHEST_SIMPALLOC_SLOT_BYTE_ADDR + BASEPTR_ALIGN - 1; // 0b1111111111111101111111111111111111111111111110 == 70_366_596_694_014
 
 
 // --- Implementation ---
@@ -500,9 +500,9 @@ fn failover_slabnum(slabnum: u8) -> u8 {
     (slabnum + 7) & SLABNUM_BITS_ALONE_MASK
 }
 
-unsafe impl Sync for Smmalloc {}
+unsafe impl Sync for Simpalloc {}
 
-impl Default for Smmalloc {
+impl Default for Simpalloc {
     fn default() -> Self {
         Self::new()
     }

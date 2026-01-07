@@ -5,7 +5,7 @@ fn help_test_overflow_to_other_slab(sc: u8) {
     debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
     debug_assert!(sc <= (NUM_SCS - 2)); // This test code needs at least 3 slots.
 
-    let sm = get_testsmmalloc();
+    let sm = get_testsimpalloc();
 
     let siz = help_slotsize(sc);
     let l = Layout::from_size_align(siz, 1).unwrap();
@@ -68,7 +68,7 @@ fn help_test_overflow_to_other_slab(sc: u8) {
     assert_eq!(slotnum3, 0);
 
     // Step 5: If we alloc_slot() again on this thread, it will come from this new slab:
-    let p4 = unsafe { get_testsmmalloc().alloc(l) };
+    let p4 = unsafe { get_testsimpalloc().alloc(l) };
     assert!(!p4.is_null(), "sc3: {sc3}, sc: {sc}, slabnum3: {slabnum3}, slabnum1: {slabnum1}, p3: {p3:?}, p2: {p2:?}, slotnum3: {slotnum3}");
 
     let (sc4, slabnum4, slotnum4) = sm.help_ptr_to_loc(p4);
@@ -85,7 +85,7 @@ fn help_test_overflow_to_other_sizeclass_once(sc: u8) {
     debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
     debug_assert!(sc < NUM_SCS - 1);
 
-    let sm = get_testsmmalloc();
+    let sm = get_testsimpalloc();
 
     let siz = help_slotsize(sc);
     let l = Layout::from_size_align(siz, 1).unwrap();
@@ -135,7 +135,7 @@ fn help_test_overflow_to_other_sizeclass_twice_at_once(sc: u8) {
     debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
     debug_assert!(sc < NUM_SCS - 2);
 
-    let sm = get_testsmmalloc();
+    let sm = get_testsimpalloc();
 
     let siz = help_slotsize(sc);
     let l = Layout::from_size_align(siz, 1).unwrap();
@@ -193,7 +193,7 @@ fn help_test_overflow_to_other_sizeclass_twice_in_a_row(sc: u8) {
     debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
     debug_assert!(sc < NUM_SCS - 2);
 
-    let sm = get_testsmmalloc();
+    let sm = get_testsimpalloc();
 
     let siz = help_slotsize(sc);
     let l = Layout::from_size_align(siz, 1).unwrap();
@@ -275,7 +275,7 @@ fn help_test_overflow_to_other_sizeclass_twice_in_a_row(sc: u8) {
 /// Allocate this size+align three times, then free the middle one, then allocate a fourth time,
 /// then assert that the fourth slot is the same as the second slot. Also asserts that the
 /// slab num is the same as this thread num.
-fn help_alloc_four_times_singlethreaded(sm: &Smmalloc, reqsize: usize, reqalign: usize) {
+fn help_alloc_four_times_singlethreaded(sm: &Simpalloc, reqsize: usize, reqalign: usize) {
     assert!(reqsize > 0);
     assert!(reqsize <= help_slotsize(NUM_SCS - 1));
     assert!(reqalign > 0);
@@ -413,7 +413,7 @@ nextest_unit_tests! {
     }
 
     fn a_few_allocs_and_a_dealloc_for_the_largest_slab() {
-        let sm = get_testsmmalloc();
+        let sm = get_testsimpalloc();
 
         let sc = NUM_SCS - 1;
         let smallest = help_slotsize(sc - 1) + 1;
@@ -498,7 +498,7 @@ nextest_unit_tests! {
     /// If we've allocated all of the slots from all of the largest large-slots slabs, the next
     /// allocation will fail.
     fn overflow_from_all_largest_large_slots_slabs() {
-        let sm = get_testsmmalloc();
+        let sm = get_testsimpalloc();
 
         let sc = NUM_SCS - 1;
         let siz = help_slotsize(sc);
@@ -519,7 +519,7 @@ nextest_unit_tests! {
     /// If we've allocated all of the slots from one of the largest large-slots slab, the next
     /// allocation will come from another one.
     fn overflow_from_one_largest_large_slots_slab() {
-        let sm = get_testsmmalloc();
+        let sm = get_testsimpalloc();
 
         let sc = NUM_SCS - 1;
         let siz = help_slotsize(sc);
@@ -554,8 +554,8 @@ nextest_unit_tests! {
                     assert!(slotnum2 < 2usize.pow(32));
                     let slotnum2 = slotnum2 as u32;
                     if slotnum1 < sentinel_slotnum as u32 && slotnum2 <= sentinel_slotnum && slotnum1 != slotnum2 {
-                        let ence = Smmalloc::encode_next_entry_link(slotnum1, slotnum2, sentinel_slotnum);
-                        let dece = Smmalloc::decode_next_entry_link(slotnum1, ence, sentinel_slotnum);
+                        let ence = Simpalloc::encode_next_entry_link(slotnum1, slotnum2, sentinel_slotnum);
+                        let dece = Simpalloc::decode_next_entry_link(slotnum1, ence, sentinel_slotnum);
                         assert_eq!(slotnum2, dece, "slotnum1: {slotnum1}, ence: {ence}, sc: {sc}");
                     }
                 }
@@ -565,7 +565,7 @@ nextest_unit_tests! {
 
     fn a_few_allocs_and_a_dealloc_for_each_slab() {
         // Doesn't work for the largest size class (sc 31) because there aren't 3 slots.
-        let sm = get_testsmmalloc();
+        let sm = get_testsimpalloc();
 
         for sc in NUM_UNUSED_SCS..NUM_SCS - 1 {
             help_alloc_diff_size_and_alignment_singlethreaded(sm, sc);
@@ -573,7 +573,7 @@ nextest_unit_tests! {
     }
 }
 
-impl Smmalloc {
+impl Simpalloc {
     fn help_set_flh_singlethreaded(&self, sc: u8, slotnum: u32, slabnum: u8) {
         debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
         debug_assert!(sc < NUM_SCS);
@@ -596,7 +596,7 @@ impl Smmalloc {
 
         let p_addr = ptr.addr();
 
-        assert!((p_addr >= smbp) && (p_addr <= smbp + HIGHEST_SMMALLOC_SLOT_ADDR));
+        assert!((p_addr >= smbp) && (p_addr <= smbp + HIGHEST_SIMPALLOC_SLOT_ADDR));
 
         let slabnum = (p_addr & SLABNUM_BITS_ADDR_MASK) >> SLABNUM_ADDR_SHIFT_BITS;
         let sc = (p_addr & SC_BITS_ADDR_MASK) >> NUM_SLOTNUM_AND_DATA_BITS;
@@ -626,7 +626,7 @@ fn alignedsize_or(size: usize, align: usize) -> usize {
 
 /// Generate a number of requests (size+alignment) that fit into the given slab and for each
 /// request call help_alloc_four_times_singlethreaded()
-fn help_alloc_diff_size_and_alignment_singlethreaded(sm: &Smmalloc, sc: u8) {
+fn help_alloc_diff_size_and_alignment_singlethreaded(sm: &Simpalloc, sc: u8) {
     debug_assert!(sc >= NUM_UNUSED_SCS, "{sc}");
     debug_assert!(sc < NUM_SCS);
 
@@ -650,9 +650,9 @@ fn help_alloc_diff_size_and_alignment_singlethreaded(sm: &Smmalloc, sc: u8) {
     }
 }
 
-static mut UNIT_TEST_ALLOC: Smmalloc = Smmalloc::new();
+static mut UNIT_TEST_ALLOC: Simpalloc = Simpalloc::new();
 
-fn get_testsmmalloc() -> &'static Smmalloc {
+fn get_testsimpalloc() -> &'static Simpalloc {
     let res = unsafe { &*std::ptr::addr_of!(UNIT_TEST_ALLOC) };
     res.idempotent_init();
     res
@@ -680,7 +680,7 @@ macro_rules! nextest_unit_tests {
     };
 }
 
-use crate::Smmalloc;
+use crate::Simpalloc;
 use std::sync::atomic::Ordering::Relaxed;
 use crate::*;
 use std::alloc::{Layout, GlobalAlloc};
